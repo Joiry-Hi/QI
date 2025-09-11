@@ -1,0 +1,22 @@
+# --- 玩家初始属性配置文件 ---
+# 您可以在这里修改游戏的默认初始参数
+# '#'开头的行是注释，程序会忽略
+
+[InitialStats]
+
+# 初始生命值 (Initial Health Points)
+#HP = 10
+
+# 初始灵气值 (Initial Qi Points)
+QI = 0
+
+# 初始境界 (Initial Realm Level, 0=Mortal, 1=Qi Refining, etc.)
+XIUWEI = 0
+
+# 初始闪避率 (Initial Evade Chance, 0.05 = 5%)
+Evade = 0
+
+REPS = 2000
+
+#生存主义者 0 狂战士 1 神龟流 2 苦修者 3 快攻手 4 狂才 5
+Enemy = 3
