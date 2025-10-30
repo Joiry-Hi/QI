@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch QI.exe", // 给这个调试配置起一个清晰的名字
+            "type": "cppdbg", // 调试器类型，保持cppdbg
+            "request": "launch", // 请求类型，launch表示启动一个新程序
+
+            // 【核心】要调试的程序路径
+            // ${workspaceFolder} 是一个VS Code变量，代表您打开的项目根目录
+            "program": "${workspaceFolder}/QI.exe", 
+
+            "args": [], // 如果您的程序需要命令行参数，在这里填写
+
+            "stopAtEntry": false, // 是否在程序入口(main函数第一行)处自动暂停
+
+            // 【核心】程序的工作目录
+            // 确保程序能找到像 config.txt 这样的相对路径文件
+            "cwd": "${workspaceFolder}", 
+
+            "environment": [],
+            "externalConsole": false, // false表示在VS Code的集成终端中运行
+                                      // true则会弹出一个新的独立CMD窗口
+
+            "MIMode": "gdb",
+
+            // 【核心】GDB调试器的路径
+            // 确保它指向了您MSYS2安装目录下的gdb.exe
+            "miDebuggerPath": "D:\\msys64\\ucrt64\\bin\\gdb.exe", // 请根据您的实际安装路径修改！
+
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+
+            // 【核心】在启动调试前，先执行哪个编译任务
+            // 这里的"label"必须与您tasks.json中的"label"完全一致！
+            "preLaunchTask": "C/C++: gcc.exe build active file" 
+        }
+    ]
+}
