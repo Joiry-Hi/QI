@@ -320,21 +320,30 @@ int main()
             {
             case 0:
                 CPU_logic_V1A(&CPU, &YOU);
-                break; // 生存主义者
+                break;
             case 1:
                 CPU_logic_V1B(&CPU, &YOU);
-                break; // 狂战士
+                break;
             case 2:
                 CPU_logic_V1C(&CPU, &YOU);
-                break; // 神龟流
+                break;
             case 3:
                 CPU_logic_V1D(&CPU, &YOU);
-                break; // 苦修者
+                break;
             case 4:
                 CPU_logic_V1E(&CPU, &YOU);
-                break; // 快攻手
+                break;
             case 5:
+                // 调用V2A时，使用索引 0
                 CPU_logic_V2A(&CPU, &YOU, 0);
+                break;
+                // --- BLUEPRINT: Add LLM Opponent Hook ---
+            case 6:
+                CPU_logic_LLM(&CPU, &YOU);
+                break;
+                // --- END ---
+            default: // 添加一个默认情况以防万一
+                CPU_logic_V0(&CPU, &YOU);
                 break;
             }
             printf("\033[0m");
@@ -342,6 +351,12 @@ int main()
             CPU_action(&CPU);
 
             Action_resolve(&YOU, &CPU);
+
+            // 回合数上限检查，属于游戏规则，而非玩家状态
+            if (game.round_number >= MAX_ROUNDS)
+            {
+                break; // 强制跳出循环
+            }
         }
 
 // --- BLUEPRINT REFACTOR: Correct I/O Management ---
@@ -361,6 +376,7 @@ int main()
 
         HUMAN_PLAYING(CHN_PRINT("\n按任意键继续...\n"));
         HUMAN_PLAYING(ENG_PRINT("\nPress any key to continue...\n"));
+        HUMAN_PLAYING(fflush(stdout)); // <-- 关键修正
         HUMAN_PLAYING(GET_CHAR());
     } while (--train_reps); //  (0); //
 
@@ -436,256 +452,305 @@ static inline int can_perform_action(const Player *player, ActionID action_id)
 }
 #pragma endregion tool_function
 
-// Game_init (最终修正版 - 完整初始化所有状态)
+// --- BLUEPRINT REFACTOR: Player Initialization Module ---
+// 一个内聚的、可重用的函数，负责初始化一个玩家的所有状态
+static void Initialize_Player(Player *player, const char *name_eng, const char *name_chn)
+{
+    // 1. 设置基础信息
+    ENG(player->name = (char *)name_eng);
+    CHN(player->name = (char *)name_chn);
+
+    // 2. 从全局配置或默认值加载初始属性 (已移除冗余赋值)
+    player->XIUWEI = g_config.initial_xiuwei;
+    player->QI = g_config.initial_qi;
+    player->evade = g_config.initial_evade > 0 ? g_config.initial_evade : 0.05f;
+
+    // 3. 根据境界，从数据表中派生属性
+    player->HP = max_HP[player->XIUWEI];
+    player->ATK = Yuan[player->XIUWEI];
+    player->YUAN = Yuan[player->XIUWEI];
+    player->gain_combo = player->XIUWEI + 1;
+
+    // 4. 重置所有动态战斗状态
+    player->current_action_id = None;
+    player->burst_count = 0;
+    player->healing = 0;
+    player->enraged = 0;
+    player->damage_received = 0;
+    player->action_cost = 0;
+
+    // 5. 随机化灵根
+    player->root = (rand() % (TOTAL_ROOT_TYPES - 1)) + 1;
+
+    // 6. 初始化技能槽
+    // 首先，将所有技能槽明确设置为空 (None = -1)
+    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+    {
+        player->learned_skills[i].skill_id = None;
+    }
+    // 然后，只填充玩家当前境界可用的技能
+    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+    {
+        if (g_skill_database[i].rank <= player->XIUWEI)
+        {
+            player->learned_skills[i] = g_skill_database[i];
+        }
+    }
+}
+// --- END REFACTOR ---
+
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
     game->round_number = 0;
-    // srand() 最好在 main 函数开始时只调用一次，但放在这里问题也不大
     ENG_PRINT("\n\033[32mWelcome to the QI Game!\033[0m\n");
     CHN_PRINT("\n\033[32m欢迎来到气之游戏！\033[0m\n");
+    fflush(stdout); // <-- 关键修正: 强制发送欢迎信息
 
-    // --- 初始化 YOU ---
-    CHN(YOU->name = "你");
-    ENG(YOU->name = "You");
-    YOU->XIUWEI = 0;
-    YOU->XIUWEI = g_config.initial_xiuwei;
-    YOU->HP = max_HP[YOU->XIUWEI];
-    // YOU->HP = g_config.initial_hp;
-    YOU->QI = 0;
-    YOU->QI = g_config.initial_qi;
-    YOU->ATK = Yuan[YOU->XIUWEI];
-    YOU->YUAN = Yuan[YOU->XIUWEI];
-    YOU->gain_combo = YOU->XIUWEI + 1;
-    YOU->current_action_id = None;
-    YOU->burst_count = 0;
-    YOU->healing = 0;
-    YOU->enraged = 0;
-    YOU->evade = 0.05f;
-    YOU->evade = g_config.initial_evade;
-    YOU->root = (rand() % (TOTAL_ROOT_TYPES - 1)) + 1;
-    YOU->damage_received = 0;
-    YOU->action_cost = 0;
+    // --- BLUEPRINT REFACTOR: Simplified High-Level Coordinator ---
+    // 1. 调用模块化函数，分别初始化YOU和CPU
+    Initialize_Player(YOU, "You", "你");
+    Initialize_Player(CPU, "CPU", "CPU"); // 临时名字，稍后会被覆盖
 
-    // --- 初始化 CPU ---
-    CPU->XIUWEI = 0;
-    CPU->XIUWEI = g_config.initial_xiuwei;
-    CPU->HP = max_HP[CPU->XIUWEI];
-    // CPU->HP = g_config.initial_hp;
-    CPU->QI = 0;
-    CPU->QI = g_config.initial_qi;
-    CPU->ATK = Yuan[CPU->XIUWEI];
-    CPU->YUAN = Yuan[CPU->XIUWEI];
-    CPU->gain_combo = CPU->XIUWEI + 1;
-    CPU->current_action_id = None;
-    CPU->burst_count = 0;
-    CPU->healing = 0;
-    CPU->enraged = 0;
-    CPU->evade = 0.05f;
-    CPU->evade = g_config.initial_evade;
-    CPU->root = (rand() % (TOTAL_ROOT_TYPES - 1)) + 1;
-    CPU->damage_received = 0;
-    CPU->action_cost = 0;
-
-    // --- BLUEPRINT REFACTOR: Unambiguous Skill Initialization ---
-    // 1. 首先，将所有技能槽明确设置为空 (None = -1)
-    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
-    {
-        YOU->learned_skills[i].skill_id = None;
-        CPU->learned_skills[i].skill_id = None;
-    }
-
-    // 2. 然后，只填充玩家当前境界可用的技能
-    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
-    {
-        // 如果技能的阶级 (rank) 低于或等于玩家的境界 (XIUWEI)
-        if (g_skill_database[i].rank <= YOU->XIUWEI)
-        {
-            // 就将这个技能“授予”玩家
-            YOU->learned_skills[i] = g_skill_database[i];
-        }
-        if (g_skill_database[i].rank <= CPU->XIUWEI)
-        {
-            CPU->learned_skills[i] = g_skill_database[i];
-        }
-    }
-    // --- END REFACTOR ---
-
-    // 初始化玩家当前行动
-    YOU->current_action_id = None;
-    CPU->current_action_id = None;
-    // --- END REFACTOR ---
-
+    // 2. 根据游戏模式确定并设置CPU的具体“人格”
+    // --- BLUEPRINT REFACTOR: Unified Opponent Configuration ---
+    // 1. 修正边界检查，使其包含LLM对手类型(6)
     if (g_config.enemy_type >= 0 && g_config.enemy_type <= 6)
     {
         game->opponent_type = g_config.enemy_type;
     }
     else
     {
-        game->opponent_type = rand() % 5;
+        game->opponent_type = rand() % 5; // 如果配置无效，则随机选择一个普通对手
     }
 
+    // 2. 在初始化时就正确设置LLM对手的名字
     switch (game->opponent_type)
     {
     case 0:
         CHN(CPU->name = "生存主义者");
         ENG(CPU->name = "Survivor");
-        break; // 生存主义者
+        break;
     case 1:
         CHN(CPU->name = "狂战士");
         ENG(CPU->name = "Berserker");
-        break; // 狂战士
+        break;
     case 2:
         CHN(CPU->name = "神龟流");
         ENG(CPU->name = "Turtle");
-        break; // 神龟流
+        break;
     case 3:
         CHN(CPU->name = "苦修者");
         ENG(CPU->name = "Ascetic");
-        break; // 苦修者
+        break;
     case 4:
         CHN(CPU->name = "快攻手");
         ENG(CPU->name = "Quick Hand");
-        break; // 快攻手
+        break;
     case 5:
         CHN(CPU->name = "狂才");
         ENG(CPU->name = "Crazy Genius");
         break;
+    case 6:
+        CHN(CPU->name = "悟道者");
+        ENG(CPU->name = "Enlightened One");
+        break;
     }
+    // --- END REFACTOR ---
 
-    printf("\033[93m"); // 使用亮黄色显示天赋信息
+    // 3. 打印初始信息并应用灵根修正
+    printf("\033[93m");
     CHN_PRINT("[天赋觉醒] %s 乃是 %s, ", YOU->name, CHN_Root_Names[YOU->root]);
     ENG_PRINT("[Talent Awakened] %s possesses the %s, ", YOU->name, Eng_Root_Names[YOU->root]);
-
     CHN_PRINT("%s 则是 %s!\n", CPU->name, CHN_Root_Names[CPU->root]);
     ENG_PRINT("while %s has the %s!\n", CPU->name, Eng_Root_Names[CPU->root]);
     printf("\033[0m");
 
     if (YOU->root == ROOT_Solid)
     {
-        YOU->HP *= 1.2f; // 厚土灵根初始额外生命值
+        YOU->HP *= 1.2f;
     }
     if (CPU->root == ROOT_Solid)
     {
-        CPU->HP *= 1.2f; // 厚土灵根初始额外生命值
+        CPU->HP *= 1.2f;
     }
+    // --- END REFACTOR ---
 }
 
-void Status_settlement(Player *player)
+// --- BLUEPRINT REFACTOR: Modular Status Resolution ---
+
+// 模块 1: 处理行动消耗与状态重置
+static void Resolve_Action_Costs_And_Resets(Player *player)
 {
     player->QI -= player->action_cost;
     player->action_cost = 0;
 
-    // Termination
-    if (game.round_number >= MAX_ROUNDS)
-    {
-        player->HP = 0; // Force end the game if max rounds reached
-        return;         // Early exit to avoid further processing
-    }
-
-    // QI combo gain logic FIRST
+    // 集气连击逻辑
     if (player->current_action_id == Gain_qi)
     {
         if (player->gain_combo < 1 << player->XIUWEI)
-            ++player->gain_combo;
+        {
+            player->gain_combo++;
+        }
     }
     else
     {
         player->gain_combo = player->XIUWEI + 1;
     }
 
-    // Reset action AFTER all checks depending on it are done.
     player->current_action_id = None;
+}
 
-    if (player->healing)
-        player->enraged = 0;
-    if (player->healing && player->HP < max_HP[player->XIUWEI])
+// 模块 2: 处理持续性效果 (如治疗、激怒、闪避衰减)
+static void Resolve_Persistent_Effects(Player *player)
+{
+    // 治疗效果
+    if (player->healing > 0)
     {
-        ENG_PRINT("[%s healed for %d HP!]\n", player->name, player->healing);
-        CHN_PRINT("[%s 恢复了 %d 点生命值！]\n", player->name, player->healing);
-        player->HP += player->healing;
-    }
-    if (player->root == ROOT_Solid)
-    {
-        player->HP += player->healing / 2; // Earthly root heals 50% more
-    }
-    if (player->root == ROOT_Solid)
-    {
-        if (player->HP > max_HP[player->XIUWEI] * 1.2f)
-            player->HP = max_HP[player->XIUWEI] * 1.2f;
-    }
-    else
-    {
-        if (player->HP > max_HP[player->XIUWEI])
-            player->HP = max_HP[player->XIUWEI];
-    }
-
-    player->ATK = Yuan[player->XIUWEI] + player->enraged--;
-    if (player->enraged < 0)
-        player->enraged = 0;
-
-    if (player->evade > 1)
-        player->evade = 1; // 确保闪避率不超过 100%
-    if (player->root == ROOT_Ethereal)
-    {
-        player->evade -= 0.5f * (player->evade - 0.1f * player->XIUWEI);
-    }
-    else
-    {
-        player->evade -= 0.5f * (player->evade - 0.02f * player->XIUWEI);
+        int max_hp_for_realm = (player->root == ROOT_Solid) ? max_HP[player->XIUWEI] * 1.2f : max_HP[player->XIUWEI];
+        if (player->HP < max_hp_for_realm)
+        {
+            int heal_amount = player->healing;
+            if (player->root == ROOT_Solid)
+            {
+                heal_amount *= 1.5f; // 厚土灵根治疗效果增强
+            }
+            ENG_PRINT("[%s healed for %d HP!]\n", player->name, heal_amount);
+            CHN_PRINT("[%s 恢复了 %d 点生命值！]\n", player->name, heal_amount);
+            player->HP += heal_amount;
+            if (player->HP > max_hp_for_realm)
+            {
+                player->HP = max_hp_for_realm;
+            }
+        }
+        player->healing = 0; // 治疗是一次性效果
     }
 
-    if (player->damage_received >= 1)
+    // 激怒效果
+    if (player->enraged > 0)
+    {
+        player->enraged--;
+    }
+    player->ATK = Yuan[player->XIUWEI] + player->enraged;
+
+    // 闪避率衰减
+    float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
+    if (player->evade > base_evade)
+    {
+        player->evade -= 0.5f * (player->evade - base_evade);
+    }
+}
+
+// 模块 3: 处理伤害结算
+static void Resolve_Damage(Player *player)
+{
+    if (player->damage_received > 0)
     {
         ENG_PRINT("[%s took \033[35m%d\033[33m damage!]\n", player->name, player->damage_received);
         CHN_PRINT("[%s 受到 \033[35m%d\033[33m 点伤害!]\n", player->name, player->damage_received);
+        player->HP -= player->damage_received;
+        player->damage_received = 0;
     }
-    player->HP -= player->damage_received;
-    player->damage_received = 0;
+}
 
-    if (player->QI >= max_QI[player->XIUWEI])
+// --- BLUEPRINT REFACTOR: Dedicated Breakthrough Module ---
+static void Apply_Breakthrough_Rewards(Player *player)
+{
+    // 1. 清空QI (突破消耗)
+    player->QI = 0;
+
+    // 2. 根据新的境界，刷新所有派生属性
+    player->HP = max_HP[player->XIUWEI];
+    player->ATK = Yuan[player->XIUWEI];
+    player->YUAN = Yuan[player->XIUWEI];
+    player->gain_combo = player->XIUWEI + 1;
+
+    // 3. 重置动态状态
+    player->enraged = 0;
+    player->healing = 0;
+
+    // 4. 应用灵根的突破奖励
+    if (player->root == ROOT_Solid)
     {
-        float breakthrough_chance = 90.0f * exp(-player->XIUWEI / 2.0f); // 基础50%成功率
-        if (player->root == ROOT_Heavenly)
+        player->HP *= 1.2f;
+    }
+    if (player->root == ROOT_Ethereal)
+    {
+        player->evade = 0.1f * player->XIUWEI;
+    }
+    else
+    {
+        player->evade = 0.02f * player->XIUWEI;
+    }
+
+    // 5. 重新授予技能！这是至关重要的一步
+    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+    {
+        if (g_skill_database[i].rank <= player->XIUWEI)
         {
-            breakthrough_chance = 90.0f; // 天灵根，90%成功率！
+            player->learned_skills[i] = g_skill_database[i];
         }
-        printf("breakthrough_chance: %f", breakthrough_chance);
-        // 突破有概率不成功
-        if (rand() % 100 < breakthrough_chance) // 50% 概率成功突破
+    }
+}
+// --- END REFACTOR ---
+
+// 模块 4: 处理突破判定
+static void Resolve_Breakthrough(Player *player)
+{
+    if (player->XIUWEI < REALM_COUNT - 1 && player->QI >= max_QI[player->XIUWEI])
+    {
+        float breakthrough_chance = (player->root == ROOT_Heavenly) ? 90.0f : 90.0f * exp(-player->XIUWEI / 2.0f);
+
+        if ((rand() % 100) < breakthrough_chance)
         {
+            // --- 核心修正: 正确的流程 ---
+            // 1. 先提升境界等级
             player->XIUWEI++;
-            player->QI = 0;
-            if (player->root == ROOT_Solid)
-            {
-                player->HP = max_HP[player->XIUWEI] * 1.2f; // 土灵根，生命值增加20%
-            }
-            else
-            {
-                player->HP = max_HP[player->XIUWEI];
-            }
-            player->ATK = Yuan[player->XIUWEI]; // Changed from max_QI / 10
-            player->YUAN = Yuan[player->XIUWEI];
-            player->gain_combo = player->XIUWEI + 1;
-            player->enraged = 0;
-            if (player->root == ROOT_Ethereal)
-            {
-                player->evade = 0.1f * player->XIUWEI;
-            }
-            else
-            {
-                player->evade = 0.02f * player->XIUWEI;
-            } // 每个境界增加2%的闪避率
-            CHN_PRINT("[%s 突破至 %s 期!]\n", player->name, Realm[player->XIUWEI]);
-            ENG_PRINT("[%s has broken through to the %s realm!]\n", player->name, Eng_Realm[player->XIUWEI]);
-            // Act_list_maintain(player); // Pass the current player who broke through
+
+            // 2. 再调用专用的奖励函数
+            Apply_Breakthrough_Rewards(player);
+            // --- END ---
+
+            CHN_PRINT("\033[92m[%s 突破至 %s 期!]\033[0m\n", player->name, Realm[player->XIUWEI]);
+            ENG_PRINT("\033[92m[%s has broken through to the %s realm!]\033[0m\n", player->name, Eng_Realm[player->XIUWEI]);
         }
         else
         {
-            CHN_PRINT("[%s 突破失败!]\n", player->name);
-            ENG_PRINT("[%s failed to break through!]\n", player->name);
-            player->QI = max_QI[player->XIUWEI] * 3 / 4; //
+            CHN_PRINT("\033[91m[%s 突破失败!]\033[0m\n", player->name);
+            ENG_PRINT("\033[91m[%s failed to break through!]\033[0m\n", player->name);
+            player->QI = max_QI[player->XIUWEI] * 3 / 4;
         }
     }
+}
+
+void Status_settlement(Player *player)
+{
+    // 如果玩家已死亡，则跳过所有结算
+    if (player->HP <= 0)
+    {
+        return;
+    }
+
+    // --- BLUEPRINT REFACTOR: High-Level Settlement Coordinator ---
+    // 流程清晰，如同清单
+
+    // 1. 结算行动消耗与状态重置
+    Resolve_Action_Costs_And_Resets(player);
+
+    // 2. 结算持续性效果 (治疗、Buff/Debuff)
+    Resolve_Persistent_Effects(player);
+
+    // 3. 结算本回合受到的伤害
+    Resolve_Damage(player);
+
+    // 4. 在所有状态变化后，检查是否满足突破条件
+    // (需要先检查一次血量，防止死亡后突破)
+    if (player->HP > 0)
+    {
+        Resolve_Breakthrough(player);
+    }
+
+    // (回合数上限检查已移至 main 循环，因为它属于游戏全局逻辑)
+    // --- END REFACTOR ---
 }
 
 int Start_new_round(Game *game)
@@ -710,6 +775,10 @@ int Start_new_round(Game *game)
     ENG_PRINT("%s's HP: \033[36m%d\033[0m, %s's QI: \033[33m%d\033[0m\n", CPU.name, CPU.HP, CPU.name, CPU.QI);
     CHN_PRINT("你的元神: \033[36m%d\033[0m, 你的气力: \033[33m%d\033[0m\n", YOU.HP, YOU.QI);
     CHN_PRINT("%s的元神: \033[36m%d\033[0m, %s的气力: \033[33m%d\033[0m\n", CPU.name, CPU.HP, CPU.name, CPU.QI);
+
+    // 我们已经在 Build_LLM_Prompt 的末尾加了 fflush，所以这里可以不加。
+    // 但是为了代码的健壮性，在所有需要与外部交互的打印块末尾加上它都是一个好习惯。
+    fflush(stdout);
 
     // --- BLUEPRINT REFACTOR: Correct Logging Perspective ---
     // 日志记录始终以 YOU (学习中的AI) 为第一视角
@@ -752,12 +821,26 @@ void Player_action(Game game, Player *YOU)
                 ENG_PRINT("[%c]: %s (%d)  ", skill->hotkey, skill->name_eng, skill->cost);
             }
         }
-        printf("\n");
+        // --- BLUEPRINT REFACTOR: Precise Input Signaling ---
+        // 1. 发送一个明确的、机器可读的信号
+        printf("INPUT_REQUIRED\n");
+        // 2. 立即刷新，确保信号被Python立即收到
+        fflush(stdout);
+        // --- END REFACTOR ---
 
-        // 2. 获取并解析玩家输入
-        char choice;
-        scanf(" %c", &choice);
-        clear_buffer();
+        // --- BLUEPRINT REFACTOR: Robust IPC Input ---
+        char buffer[16];   // 一个小缓冲区来接收输入行
+        char choice = ' '; // 默认值
+
+        // 使用fgets从标准输入读取一行
+        if (fgets(buffer, sizeof(buffer), stdin) != NULL)
+        {
+            // 安全地取出第一个非空白字符作为选择
+            sscanf(buffer, " %c", &choice);
+        }
+        // --- END REFACTOR ---
+
+        // clear_buffer(); // fgets已经消费了换行符，不再需要这个
         choice = toupper(choice);
 
         // 3. 验证输入并设置行动 (通过匹配hotkey)
@@ -882,7 +965,7 @@ void Action_resolve(Player *YOU, Player *CPU) // 互动解算
 
     Status_settlement(YOU);
     Status_settlement(CPU);
-    printf("\n");
+    printf("\033[0m\n");
 }
 
 void Game_summary(Player *YOU, Player *CPU)
@@ -1733,27 +1816,53 @@ void Build_LLM_Prompt(const Player *cpu, const Player *opponent)
     // --- 6. 结束信号 ---
     // 发送一个特殊的结束标记，让Python中间人知道可以发送请求了
     printf("END_OF_PROMPT\n");
-    fflush(stdout); // 极其重要！强制刷新输出缓冲区
+    fflush(stdout); // 极其重要！强制刷新输出缓冲区，确保Python能立即收到
 }
 
-// 在 QI.c 中
 void CPU_logic_LLM(Player *cpu, const Player *opponent)
 {
     // 1. 构建并打印给LLM的Prompt
     Build_LLM_Prompt(cpu, opponent);
 
-    // 2. 从标准输入(stdin)等待Python中间人的回应
+    // --- BLUEPRINT REFACTOR: Robust IPC Input ---
     int chosen_id = -1;
-    if (scanf("%d", &chosen_id) == 1)
+    char buffer[16];
+
+    // 使用fgets从标准输入(由Python控制)读取一行
+    if (fgets(buffer, sizeof(buffer), stdin) != NULL)
     {
-        // 3. 将读取到的ID设置为当前行动
-        // （这里需要一个安全检查，确保ID是合法的）
-        cpu->current_action_id = chosen_id;
+        // 使用atoi将字符串转换为整数
+        chosen_id = atoi(buffer);
+        // 3. (安全检查) 验证LLM返回的ID是否在可用行动列表中
+        ActionID affordable_actions[TOTAL_ACTION_TYPES];
+        int affordable_count = get_affordable_actions(cpu, affordable_actions);
+        int is_valid = 0;
+        for (int i = 0; i < affordable_count; i++)
+        {
+            if (chosen_id == affordable_actions[i])
+            {
+                is_valid = 1;
+                break;
+            }
+        }
+
+        if (is_valid)
+        {
+            cpu->current_action_id = chosen_id;
+        }
+        else
+        {
+            // 如果LLM“幻觉”了一个无效的行动，选择一个安全的默认行动
+            cpu->current_action_id = affordable_actions[rand() % affordable_count];
+        }
     }
     else
     {
-        // 如果读取失败，选择一个安全的默认行动
+        // 如果读取失败(例如Python脚本崩溃)，选择一个安全的默认行动
         cpu->current_action_id = Gain_qi;
+        // 清理输入缓冲区以防万一
+        while (getchar() != '\n')
+            ;
     }
 }
 #pragma endregion LLM

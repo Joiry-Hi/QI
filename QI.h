@@ -2,7 +2,6 @@
 #define QI_H
 
 #pragma region definitions&macros
-// ... (这部分内容保持不变, 从 #define _WIN32_WINNT 到 #pragma endregion definitions&macros)
 #define _WIN32_WINNT 0x0A00
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
@@ -38,7 +37,7 @@ int getch_linux();
 #define MAX_ROUNDS 500
 
 //中文开关
-#define CHINESE_GAME_LOG
+//#define CHINESE_GAME_LOG
 
 #ifdef CHINESE_GAME_LOG
 #define CHN_PRINT(...) printf(__VA_ARGS__)
