@@ -295,7 +295,10 @@ int main()
     int train_reps = g_config.train_reps;
     do
     {
+#ifndef INTERACTIVE_AI_MODE
+        // 只有在非交互模式下，才重定向输出以加速
         AI_TRAINING(freopen(NULL_DEVICE, "w", stdout));
+#endif
 
         Load_AI_Weights();
 
@@ -310,19 +313,31 @@ int main()
                 break; // 跳出这个 while 循环，直接进入 Game_summary
             }
 
-            // --- BLUEPRINT v2.1: Asynchronous AI Pre-computation ---
-            // 1. (关键改动) 如果是LLM对手，立刻生成并发送它的思考任务
-            if (game.opponent_type == 6)
+            // --- 模式7: 将帅分级 AI ---
+            if (game.opponent_type == 7)
             {
-                Build_Turn_Update_Prompt(&CPU, &YOU);
+                if (game.round_number > 0 && game.round_number % STRATEGIC_CYCLE == 0)
+                {
+                    Request_Strategic_Decision(&CPU, &YOU, &game);
+                    game.history_log_count = 0;
+                }
             }
-            // --- END ---
+            // --- 模式6: 每回合决策 AI ---
+            else if (game.opponent_type == 6)
+            {
+                CPU_logic_LLM(&CPU, &YOU);
+            }
 
-            // 让"YOU"(计分对象)使用V2学习型AI
-            AI_TRAINING(CPU_logic_V2(&YOU, &CPU));
-            AI_TRAINING(CPU_action(&YOU));
             HUMAN_PLAYING(Player_action(game, &YOU));
-            ///*
+
+            AI_TRAINING(
+                // 1. 让“YOU”这个角色使用5号AI的逻辑进行决策
+                // CPU_logic_V2A 的第一个参数是决策者，第二个是其对手
+                CPU_logic_V2A(&YOU, &CPU, 0);
+
+                // 2. 调用通用的行动宣告函数，来打印“YOU”的决策
+                CPU_action(&YOU);)
+
             printf("\033[91m");
             switch (game.opponent_type)
             {
@@ -342,15 +357,36 @@ int main()
                 CPU_logic_V1E(&CPU, &YOU);
                 break;
             case 5:
-                // 调用V2A时，使用索引 0
                 CPU_logic_V2A(&CPU, &YOU, 0);
                 break;
-                // --- BLUEPRINT: Add LLM Opponent Hook ---
             case 6:
                 CPU_logic_LLM(&CPU, &YOU);
                 break;
-                // --- END ---
-            default: // 添加一个默认情况以防万一
+            case 7:
+                switch (game.current_general_id)
+                {
+                case 0:
+                    CPU_logic_V1A(&CPU, &YOU);
+                    break;
+                case 1:
+                    CPU_logic_V1B(&CPU, &YOU);
+                    break;
+                case 2:
+                    CPU_logic_V1C(&CPU, &YOU);
+                    break;
+                case 3:
+                    CPU_logic_V1D(&CPU, &YOU);
+                    break;
+                case 4:
+                    CPU_logic_V1E(&CPU, &YOU);
+                    break;
+                default:
+                    CPU_logic_V0(&CPU, &YOU);
+                    break;
+                }
+                break;
+
+            default:
                 CPU_logic_V0(&CPU, &YOU);
                 break;
             }
@@ -368,11 +404,14 @@ int main()
         }
 
 // --- BLUEPRINT REFACTOR: Correct I/O Management ---
-// 2. (仅在AI训练时) 临时恢复控制台输出，以便显示总结
 #ifdef _WIN32
+        #ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("CONOUT$", "w", stdout));
+        #endif
 #else
+        #ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("/dev/tty", "w", stdout));
+        #endif
 #endif
         // --- END REFACTOR ---
 
@@ -510,6 +549,9 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
     game->round_number = 0;
+    game->current_general_id = 1; // 默认以“狂战士”开局
+    game->history_log_count = 0;
+
     ENG_PRINT("\n\033[32mWelcome to the QI Game!\033[0m\n");
     CHN_PRINT("\n\033[32m欢迎来到气之游戏！\033[0m\n");
     fflush(stdout); // <-- 关键修正: 强制发送欢迎信息
@@ -522,7 +564,7 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     // 2. 根据游戏模式确定并设置CPU的具体“人格”
     // --- BLUEPRINT REFACTOR: Unified Opponent Configuration ---
     // 1. 修正边界检查，使其包含LLM对手类型(6)
-    if (g_config.enemy_type >= 0 && g_config.enemy_type <= 6)
+    if (g_config.enemy_type >= 0 && g_config.enemy_type <= 7)
     {
         game->opponent_type = g_config.enemy_type;
     }
@@ -561,12 +603,17 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     case 6:
         CHN(CPU->name = "悟道者");
         ENG(CPU->name = "Enlightened One");
-        // --- BLUEPRINT v2.0: Genesis Phase Trigger ---
-        // 仅在对手是LLM时，发送新游戏信号和创世提示词
+        // 模式6: 发送 NEW_GAME_START 和 创世提示词
         printf("##CMD##:NEW_GAME_START\n");
         fflush(stdout);
         Build_Genesis_Prompt();
-        // --- END ---
+        break;
+    case 7:
+        CHN(CPU->name = "大元帅");
+        ENG(CPU->name = "Grand Marshal");
+        // 模式7: 只发送 NEW_GAME_START，等待战略周期
+        printf("##CMD##:NEW_GAME_START\n");
+        fflush(stdout);
         break;
     }
     // --- END REFACTOR ---
@@ -959,6 +1006,12 @@ void Action_resolve(Player *YOU, Player *CPU) // 互动解算
 
     Oneway_Solution(YOU, CPU);
     Oneway_Solution(CPU, YOU);
+
+    if (game.history_log_count < STRATEGIC_CYCLE)
+    {
+        game.player_turn_history[game.history_log_count].action_id = YOU->current_action_id;
+        game.history_log_count++;
+    }
 
     // --- BLUEPRINT REFACTOR: Correct Logging Perspective ---
     if (g_log_count < MAX_LOG_TURNS)
@@ -1876,4 +1929,88 @@ void CPU_logic_LLM(Player *cpu, const Player *opponent)
         cpu->current_action_id = Gain_qi;
     }
 }
+
+void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, const Game *game)
+{
+    // --- 1. 开场白 ---
+    printf("Grand Marshal, this is the battlefield report for the last %d turns.\n", game->history_log_count);
+
+    // --- 2. 宏观态势 ---
+    printf("== Strategic Overview ==\n");
+    printf("Our Status (CPU): {HP: %d/%d, QI: %d/%d, Realm: %s}\n", cpu->HP, max_HP[cpu->XIUWEI], cpu->QI, max_QI[cpu->XIUWEI], Eng_Realm[cpu->XIUWEI]);
+    printf("Opponent Status (Player): {HP: %d/%d, QI: %d/%d, Realm: %s}\n", opponent->HP, max_HP[opponent->XIUWEI], opponent->QI, max_QI[opponent->XIUWEI], Eng_Realm[opponent->XIUWEI]);
+
+    // --- 3. 对手行为分析 ---
+    printf("== Opponent Behavior Analysis ==\n");
+    if (game->history_log_count > 0)
+    {
+        int action_counts[TOTAL_ACTION_TYPES] = {0};
+        for (int i = 0; i < game->history_log_count; i++)
+        {
+            if (game->player_turn_history[i].action_id >= 0)
+            {
+                action_counts[game->player_turn_history[i].action_id]++;
+            }
+        }
+        printf("In the last %d turns, opponent actions were: ", game->history_log_count);
+        for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+        {
+            if (action_counts[i] > 0)
+            {
+                printf("%s: %d times; ", g_skill_database[i].name_eng, action_counts[i]);
+            }
+        }
+        printf("\n");
+    }
+    else
+    {
+        printf("No opponent actions recorded in this cycle yet.\n");
+    }
+
+    // --- 4. 我方现状 ---
+    printf("== Current Strategy Assessment ==\n");
+    // 这里可以根据 g_skill_database 动态获取将军名字，为简化先硬编码
+    const char *general_names[] = {"Survivor", "Berserker", "Turtle", "Ascetic", "Quick Hand"};
+    printf("We are currently executing strategy ID %d (%s).\n", game->current_general_id, general_names[game->current_general_id]);
+
+    // --- 5. 可用将领列表 ---
+    printf("== Available Generals for Deployment ==\n");
+    printf("[0: Survivor], [1: Berserker], [2: Turtle], [3: Ascetic], [4: Quick Hand]\n");
+
+    // --- 6. 核心问题 ---
+    printf("Grand Marshal, should we switch generals? Please respond in JSON format: {\"next_general_id\": <id>, \"reasoning\": \"...\"}\n");
+
+    // --- 7. 结束信号 ---
+    printf("END_OF_PROMPT\n");
+    fflush(stdout);
+}
+
+void Request_Strategic_Decision(Player *cpu, Player *opponent, Game *game)
+{
+    // 1. 生成并发送“战情简报”
+    Build_Strategic_Report_Prompt(cpu, opponent, game);
+
+    // 2. 等待Python中间人返回决策
+    int new_general_id = -1;
+    char buffer[16];
+    if (fgets(buffer, sizeof(buffer), stdin) != NULL)
+    {
+        new_general_id = atoi(buffer);
+        // 安全检查：确保ID在有效范围内
+        if (new_general_id >= 0 && new_general_id <= 4)
+        { // 假设我们有5个将军
+            if (game->current_general_id != new_general_id)
+            {
+                printf("\033[95m[STRATEGIC SHIFT] Grand Marshal has ordered a change of command! General %d is now in charge!\033[0m\n", new_general_id);
+                game->current_general_id = new_general_id;
+            }
+            else
+            {
+                printf("\033[95m[STRATEGIC CONFIRMATION] Grand Marshal confirms current strategy is optimal. Proceeding with General %d.\033[0m\n", new_general_id);
+            }
+        }
+    }
+    // 如果没有收到有效指令，则维持原状
+}
+
 #pragma endregion LLM

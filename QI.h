@@ -35,6 +35,7 @@ int getch_linux();
 #define COST_LEVELS 7
 #define MAX_LOG_TURNS 100
 #define MAX_ROUNDS 500
+#define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
 
 //中文开关
 //#define CHINESE_GAME_LOG
@@ -52,7 +53,9 @@ int getch_linux();
 #endif
 
 //AI训练开关
-//#define AI_TRAINING_SET
+#define AI_TRAINING_SET
+
+#define INTERACTIVE_AI_MODE //是否保持输出流
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -175,11 +178,19 @@ typedef struct Player_s
     int damage_received, action_cost;
 } Player;
 
-typedef struct
+// 为清晰起见，定义一个新的、简单的日志结构
+typedef struct {
+    ActionID action_id;
+} TurnHistoryLog;
+
+typedef struct Game_s
 {
     int round_number;
     char action;
     int opponent_type;
+    int current_general_id;
+    TurnHistoryLog player_turn_history[STRATEGIC_CYCLE];
+    int history_log_count;
 } Game;
 
 typedef struct
@@ -264,10 +275,14 @@ void AI_Learn_From_Game(int ai_won);
 void Load_AI_Weights();
 void Save_AI_Weights();
 
-// LLM Deployment
-void Build_Genesis_Prompt(); // <-- 新增
-void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent); // <-- 重命名
+// 模式1: Per-Turn LLM (事无巨细)
+void Build_Genesis_Prompt();
+void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent);
 void CPU_logic_LLM(Player *cpu, const Player *opponent);
+
+// 模式2: Grand Marshal (将帅分级)
+void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, const Game *game);
+void Request_Strategic_Decision(Player *cpu, Player *opponent, Game *game);
 
 #pragma endregion Function_Prototypes
 
