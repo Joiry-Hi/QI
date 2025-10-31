@@ -310,6 +310,14 @@ int main()
                 break; // 跳出这个 while 循环，直接进入 Game_summary
             }
 
+            // --- BLUEPRINT v2.1: Asynchronous AI Pre-computation ---
+            // 1. (关键改动) 如果是LLM对手，立刻生成并发送它的思考任务
+            if (game.opponent_type == 6)
+            {
+                Build_Turn_Update_Prompt(&CPU, &YOU);
+            }
+            // --- END ---
+
             // 让"YOU"(计分对象)使用V2学习型AI
             AI_TRAINING(CPU_logic_V2(&YOU, &CPU));
             AI_TRAINING(CPU_action(&YOU));
@@ -553,6 +561,12 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     case 6:
         CHN(CPU->name = "悟道者");
         ENG(CPU->name = "Enlightened One");
+        // --- BLUEPRINT v2.0: Genesis Phase Trigger ---
+        // 仅在对手是LLM时，发送新游戏信号和创世提示词
+        printf("##CMD##:NEW_GAME_START\n");
+        fflush(stdout);
+        Build_Genesis_Prompt();
+        // --- END ---
         break;
     }
     // --- END REFACTOR ---
@@ -821,9 +835,10 @@ void Player_action(Game game, Player *YOU)
                 ENG_PRINT("[%c]: %s (%d)  ", skill->hotkey, skill->name_eng, skill->cost);
             }
         }
+        printf("\n");
         // --- BLUEPRINT REFACTOR: Precise Input Signaling ---
         // 1. 发送一个明确的、机器可读的信号
-        printf("INPUT_REQUIRED\n");
+        printf("##CMD##:INPUT_REQUIRED\n");
         // 2. 立即刷新，确保信号被Python立即收到
         fflush(stdout);
         // --- END REFACTOR ---
@@ -1776,64 +1791,65 @@ void Save_AI_Weights()
 
 // --- The true power —— —— LLM ---
 #pragma region LLM
-void Build_LLM_Prompt(const Player *cpu, const Player *opponent)
+// --- BLUEPRINT v2.0: Genesis Prompt ---
+void Build_Genesis_Prompt()
 {
-    // --- 1. 设定角色和目标 (Role & Goal) ---
-    printf("You are a master strategist in a mystical world of cultivation. ");
-    printf("Your name is %s. Your current realm is %s. ", cpu->name, Eng_Realm[cpu->XIUWEI]);
-    printf("Your goal is to defeat your opponent, %s, whose realm is %s. ", opponent->name, Eng_Realm[opponent->XIUWEI]);
-    printf("You must be strategic, sometimes aggressive, sometimes defensive, to win.\n");
+    // --- 1. 角色与目标 (Role & Goal) ---
+    printf("You are a master strategist in a mystical world of cultivation. Your goal is to win. ");
+    printf("You are calm, calculating, and think step-by-step.\n");
 
-    // --- 2. 描述当前战局 (Current State) ---
-    printf("== Current Battle State ==\n");
-    printf("Your HP: %d/%d, Your QI: %d/%d\n", cpu->HP, max_HP[cpu->XIUWEI], cpu->QI, max_QI[cpu->XIUWEI]);
-    printf("Opponent's HP: %d/%d, Opponent's QI: %d/%d\n", opponent->HP, max_HP[opponent->XIUWEI], opponent->QI, max_QI[opponent->XIUWEI]);
+    // --- 2. 世界法则 (World Rules) ---
+    printf("== Core Rules ==\n");
+    printf("- You win if the opponent's HP drops to 0.\n");
+    printf("- QI is the resource for most actions. Gaining QI is a fundamental move.\n");
+    printf("- Breakthroughs to higher realms (XIUWEI) are critical for long-term victory, which requires accumulating QI to the maximum.\n");
 
-    // --- 3. 描述自身特殊状态 (Your Status Effects) ---
-    if (cpu->healing > 0)
-        printf("You are currently healing.\n");
-    if (cpu->enraged > 0)
-        printf("You are enraged, your attacks are stronger.\n");
+    // --- 3. 沟通契约 (Communication Contract) ---
+    printf("== Communication Protocol ==\n");
+    printf("From now on, for every turn, you MUST respond in a strict JSON format. ");
+    printf("The JSON object must contain two keys: 'action_id' (an integer representing your chosen move) and 'reasoning' (a brief explanation of your strategy).\n");
+    printf("Example response:\n{\n  \"action_id\": 0,\n  \"reasoning\": \"My QI is low, so I must gather more to prepare for future attacks.\"\n}\n");
 
-    // --- 4. 列出可用技能 (Available Actions) ---
-    printf("== Your Available Actions ==\n");
-    printf("You have enough QI to perform the following actions:\n");
+    // --- 4. 结束信号 ---
+    printf("END_OF_PROMPT\n");
+    fflush(stdout); // 极其重要！确保创世指令被立即发送
+}
 
+// 由 Build_LLM_Prompt 重命名而来
+void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent)
+{
+    // --- 1. 描述当前战局 (Current State) ---
+    printf("== Turn Update: Round %d ==\n", game.round_number);
+    printf("Your Status: {HP: %d/%d, QI: %d/%d, Realm: %s}\n", cpu->HP, max_HP[cpu->XIUWEI], cpu->QI, max_QI[cpu->XIUWEI], Eng_Realm[cpu->XIUWEI]);
+    printf("Opponent Status: {HP: %d/%d, QI: %d/%d, Realm: %s}\n", opponent->HP, max_HP[opponent->XIUWEI], opponent->QI, max_QI[opponent->XIUWEI], Eng_Realm[opponent->XIUWEI]);
+
+    // --- 2. 列出可用技能 (Available Actions) ---
+    printf("== Available Actions (Provide ID only) ==\n");
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-
     for (int i = 0; i < affordable_count; i++)
     {
         const Skill *skill = &cpu->learned_skills[affordable_actions[i]];
-        // 打印技能ID, 名称, 和消耗
-        printf("ID: %d, Name: %s, Cost: %d\n", skill->skill_id, skill->name_eng, skill->cost);
+        printf("{ID: %d, Name: %s, Cost: %d}\n", skill->skill_id, skill->name_eng, skill->cost);
     }
 
-    // --- 5. 提出明确的问题 (The Question) ---
-    printf("Based on the current situation, which action ID do you choose? ");
-    printf("You MUST respond with only the integer ID of your chosen action. For example: 0\n");
+    // --- 3. 提出明确的问题 (The Question) ---
+    printf("Analyze the situation and provide your next move in the required JSON format.\n");
 
-    // --- 6. 结束信号 ---
-    // 发送一个特殊的结束标记，让Python中间人知道可以发送请求了
+    // --- 4. 结束信号 ---
     printf("END_OF_PROMPT\n");
-    fflush(stdout); // 极其重要！强制刷新输出缓冲区，确保Python能立即收到
+    fflush(stdout); // 极其重要！确保回合更新被立即发送
 }
 
 void CPU_logic_LLM(Player *cpu, const Player *opponent)
 {
-    // 1. 构建并打印给LLM的Prompt
-    Build_LLM_Prompt(cpu, opponent);
-
-    // --- BLUEPRINT REFACTOR: Robust IPC Input ---
+    // 函数现在唯一的职责就是阻塞并等待Python端喂入LLM的决策结果
     int chosen_id = -1;
     char buffer[16];
 
-    // 使用fgets从标准输入(由Python控制)读取一行
     if (fgets(buffer, sizeof(buffer), stdin) != NULL)
     {
-        // 使用atoi将字符串转换为整数
         chosen_id = atoi(buffer);
-        // 3. (安全检查) 验证LLM返回的ID是否在可用行动列表中
         ActionID affordable_actions[TOTAL_ACTION_TYPES];
         int affordable_count = get_affordable_actions(cpu, affordable_actions);
         int is_valid = 0;
@@ -1852,17 +1868,12 @@ void CPU_logic_LLM(Player *cpu, const Player *opponent)
         }
         else
         {
-            // 如果LLM“幻觉”了一个无效的行动，选择一个安全的默认行动
             cpu->current_action_id = affordable_actions[rand() % affordable_count];
         }
     }
     else
     {
-        // 如果读取失败(例如Python脚本崩溃)，选择一个安全的默认行动
         cpu->current_action_id = Gain_qi;
-        // 清理输入缓冲区以防万一
-        while (getchar() != '\n')
-            ;
     }
 }
 #pragma endregion LLM

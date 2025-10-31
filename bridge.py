@@ -1,68 +1,101 @@
+import json
 import re
 import datetime
 import subprocess
 import requests
 import sys
+from concurrent.futures import ThreadPoolExecutor # <-- 新增导入
+
+# --- 颜色常量定义 ---
+COLOR_AI_THINKING = "\033[96m"  # 亮青色 (Light Cyan)
+COLOR_AI_DECISION = "\033[93m"  # 亮黄色 (Light Yellow)
+COLOR_RESET = "\033[0m"         # 重置所有颜色和样式
+
+# --- 初始化线程池 ---
+# 我们只需要一个后台线程来处理LLM请求
+executor = ThreadPoolExecutor(max_workers=1)
 
 # --- 配置 ---
-# 你的本地Ollama API地址
-LLM_API_URL = "http://localhost:11434/api/generate" 
-# 你希望使用的本地模型名称 (例如 "llama3", "gemma", "qwen")
-LLM_MODEL_NAME = "mistral" # <-- 已更新为您已安装的 mistral 模型
+# 你的本地Ollama API地址 (使用新的chat接口)
+LLM_API_URL = "http://localhost:11434/api/chat"
+# 你希望使用的本地模型名称
+LLM_MODEL_NAME = "mistral"
 # 你的C语言游戏可执行文件的路径
 GAME_EXECUTABLE = "./QI"
 
+# --- BLUEPRINT v2.0: 会话历史记录 ---
+conversation_history = []
 
-def query_llm(prompt: str) -> str:
+
+def query_llm(user_prompt: str) -> str:
     """
-    向本地Ollama LLM发送请求，并将prompt写入日志文件。
+    向本地Ollama LLM发送包含完整对话历史的请求，并解析返回的JSON。
     """
-    # 将prompt写入一个带时间戳的日志文件
+    global conversation_history
+
+    # 将当前回合的用户提示词追加到历史记录
+    conversation_history.append({"role": "user", "content": user_prompt})
+
+    # 将prompt写入日志文件
     with open("llm_prompts.log", "a", encoding="utf-8") as f:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"--- Prompt at {timestamp} ---\n")
-        f.write(prompt)
+        # 记录完整的请求历史
+        f.write(json.dumps(conversation_history, indent=2, ensure_ascii=False))
         f.write("\n\n")
 
-    print(f"\n--- [Bridge] Prompt logged. Thinking...")
-    # --- END REFACTOR ---
-    
+    print(f"\n{COLOR_AI_THINKING}--- [Bridge] Thinking with full context...{COLOR_RESET}")
+
     try:
         response = requests.post(
             LLM_API_URL,
             json={
                 "model": LLM_MODEL_NAME,
-                "prompt": prompt,
+                "messages": conversation_history,  # <-- 发送完整的历史记录
                 "stream": False,
-                "options": {
-                    "temperature": 0.2
-                }
+                "format": "json",  # <-- 强制Ollama返回JSON格式
+                "options": {"temperature": 0.2},
             },
-            timeout=120
+            timeout=120,
         )
         response.raise_for_status()
-        
-        llm_output = response.json().get("response", "").strip()
-        # 我们可以保留这个原始回复的打印，因为它对于理解AI的“思路”很有价值
-        print(f"--- [Bridge] Raw LLM Response: '{llm_output}' ---")
 
-        numeric_ids = re.findall(r'\b\d+\b', llm_output)
-        
-        if numeric_ids:
-            action_id = numeric_ids[0]
-        else:
-            action_id = "0"
-        
-        return action_id
-        
+        # 解析返回的JSON字符串
+        response_data = response.json()
+        llm_message_content = response_data.get("message", {}).get("content", "")
+
+        # 将LLM的回复也追加到历史记录中，形成闭环
+        conversation_history.append(
+            {"role": "assistant", "content": llm_message_content}
+        )
+
+        # 解析LLM回复的JSON内容
+        try:
+            decision_json = json.loads(llm_message_content)
+            action_id = str(decision_json.get("action_id", "0"))
+            reasoning = decision_json.get("reasoning", "No reasoning provided.")
+
+            return {"action_id": action_id, "reasoning": reasoning}
+
+        except json.JSONDecodeError:
+            print(
+                f"--- [Bridge] ERROR: LLM returned malformed JSON: '{llm_message_content}'",
+                file=sys.stderr,
+            )
+            # 尝试从非JSON字符串中提取数字作为备用方案
+            numeric_ids = re.findall(r"\b\d+\b", llm_message_content)
+            return numeric_ids[0] if numeric_ids else "0"
+
     except requests.RequestException as e:
-        print(f"--- [Bridge] ERROR: Could not query LLM: {e} ---", file=sys.stderr)
+        print(f"--- [Bridge] ERROR: Could not query LLM: {e}", file=sys.stderr)
         return "0"
-    
+
+
 def main():
     """
-    主函数：启动C游戏作为子进程，并充当C游戏与LLM之间的双向控制器。
+    主函数：启动C游戏作为子进程，并充当C游戏与LLM之间的状态化控制器（支持并发思考）。
     """
+    global conversation_history
     print(f"--- [Bridge] Starting game process: {GAME_EXECUTABLE} ---")
     
     game_process = subprocess.Popen(
@@ -76,53 +109,89 @@ def main():
     )
 
     prompt_buffer = []
-    is_buffering_for_llm = False
-    llm_prompt_start_trigger = "You are a master strategist"
-    human_input_trigger = "INPUT_REQUIRED" # <-- 新的、精确的触发器
+    is_buffering_prompt = False
+    llm_future = None
+    
+    command_prefix = "##CMD##:"
+    prompt_end_trigger = "END_OF_PROMPT"
 
     while game_process.poll() is None:
         try:
+            # --- 主循环的全部逻辑在这里 ---
             line = game_process.stdout.readline()
             if not line:
                 break
             
-            # --- 状态转换点 1: 侦测到LLM Prompt的开始 ---
-            if llm_prompt_start_trigger in line:
-                is_buffering_for_llm = True
+            if line.startswith(command_prefix):
+                command = line.strip().split(':', 1)[1]
+                
+                if command == "INPUT_REQUIRED":
+                    print(f"{COLOR_AI_THINKING}--- [Bridge] LLM is thinking in the background while you make a choice...{COLOR_RESET}")
+                    user_input = input()
+                    game_process.stdin.write(user_input + "\n")
+                    game_process.stdin.flush()
+                    if llm_future:
+                        # a. 提示正在获取结果
+                        print(f"{COLOR_AI_THINKING}--- [Bridge] Retrieving LLM decision...{COLOR_RESET}")
+                        
+                        # b. 获取包含ID和理由的完整决策字典
+                        decision = llm_future.result() 
+                        
+                        # c. 从字典中提取信息
+                        action_id = decision.get("action_id", "0")
+                        reasoning = decision.get("reasoning", "No reasoning provided.")
+
+                        # d. 在这里打印（揭露）决策！
+                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Decided Action ID: {action_id}{COLOR_RESET}")
+                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Reasoning: {reasoning}{COLOR_RESET}")
+
+                        # e. 将决策ID发送给C程序
+                        game_process.stdin.write(action_id + "\n")
+                        game_process.stdin.flush()
+                        
+                        llm_future = None
+                
+                elif command == "NEW_GAME_START":
+                    print("\n--- [Bridge] New game detected, resetting conversation history. ---")
+                    conversation_history = []
+                    prompt_buffer = []
+                    is_buffering_prompt = False
+                    if llm_future:
+                        llm_future.cancel()
+                    llm_future = None
+                continue
             
-            # --- 核心逻辑: 根据状态决定是“显示”还是“静默缓冲” ---
-            if is_buffering_for_llm:
+            if "You are a master strategist" in line or "== Turn Update" in line:
+                is_buffering_prompt = True
+            
+            if is_buffering_prompt:
                 prompt_buffer.append(line)
             else:
-                # --- 关键修正: 绝不打印我们的内部信号 ---
-                if human_input_trigger not in line:
-                    print(line, end='')
+                print(line, end='')
 
-            # --- 信号处理点 1: 人类玩家输入 ---
-            if human_input_trigger in line:
-                user_input = input()
-                game_process.stdin.write(user_input + "\n")
-                game_process.stdin.flush()
-
-            # --- 状态转换点 2 & 信号处理点 2: LLM Prompt结束 ---
-            elif "END_OF_PROMPT" in line:
-                if is_buffering_for_llm:
+            if prompt_end_trigger in line:
+                if is_buffering_prompt:
                     full_prompt = "".join(prompt_buffer)
                     prompt_buffer = []
-                    
-                    action_id = query_llm(full_prompt)
-                    
-                    game_process.stdin.write(action_id + "\n")
-                    game_process.stdin.flush()
-                    
-                    is_buffering_for_llm = False
+                    if "Communication Protocol" in full_prompt:
+                         print("--- [Bridge] Genesis Prompt captured. Waiting for first turn... ---")
+                         conversation_history.append({"role": "user", "content": full_prompt})
+                    else:
+                        llm_future = executor.submit(query_llm, full_prompt)
+                is_buffering_prompt = False
 
         except (BrokenPipeError, KeyboardInterrupt):
-            # ... (异常处理保持不变)
+            print("\n--- [Bridge] Process interrupted. Shutting down. ---")
             break
         except Exception as e:
-            # ... (异常处理保持不变)
+            # 这是必不可少的“安全网”，用于捕捉所有未预料到的错误
+            print(f"\n--- [Bridge] An unexpected error occurred: {e} ---", file=sys.stderr)
             break
-        
+    
+    executor.shutdown()
+    game_process.terminate()
+    print("--- [Bridge] Game process terminated. ---")
+
+
 if __name__ == "__main__":
     main()

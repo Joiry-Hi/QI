@@ -265,7 +265,8 @@ void Load_AI_Weights();
 void Save_AI_Weights();
 
 // LLM Deployment
-void Build_LLM_Prompt(const Player *cpu, const Player *opponent);
+void Build_Genesis_Prompt(); // <-- 新增
+void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent); // <-- 重命名
 void CPU_logic_LLM(Player *cpu, const Player *opponent);
 
 #pragma endregion Function_Prototypes
