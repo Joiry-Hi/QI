@@ -101,6 +101,7 @@ int InterruptHealing(const Player *attacker, Player *target)
     return 0;
 }
 
+#pragma region overriders
 // Override Handler for the complex interaction between Smite and Defend.
 ResolutionResult Override_SmiteVsDefend(const InteractionRule *rule, const Player *sbj, const Player *obj)
 {
@@ -293,6 +294,7 @@ ResolutionResult Override_TerminateVsDefend(const InteractionRule *rule, const P
     }
     return result;
 }
+#pragma endregion
 
 // --- NEW: The Interaction Matrix ---
 // This is the heart of the new system. It defines all game rules as data.
@@ -331,7 +333,7 @@ const InteractionRule g_interactionMatrix[TOTAL_ACTION_TYPES][TOTAL_ACTION_TYPES
     [Burst] = {
         // 特殊交互
         [Defend] = {0.0f, 0.0f, NULL, Override_BurstVsDefend},
-        
+
         [Parry] = {0.0f, 0.0f, NULL, Override_BurstVsParry},
         // **默认情况**
         [Gain_qi] = {1.0f, 0.0f, CHN("[%s的武器爆射在%s身上!]\n") ENG("[%s's burst attack shot on %s!]\n"), NULL},
@@ -471,8 +473,16 @@ void Oneway_Solution(Player *SBJ, Player *OBJ)
 // --- Main Game Loop and Other Functions (with fixes) ---
 int main()
 {
-    // SetConsoleOutputCP(GetConsoleOutputCP());
-    // 激活Windows控制台的虚拟终端处理功能
+// SetConsoleOutputCP(GetConsoleOutputCP());
+// 激活Windows控制台的虚拟终端处理功能
+// --- 【核心修改】使用条件编译进行平台适配 ---
+#ifdef _WIN32
+    // 只在Windows下执行的代码
+    SetConsoleOutputCP(GetConsoleOutputCP());
+
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE)
     {
@@ -483,6 +493,7 @@ int main()
             SetConsoleMode(hOut, dwMode);
         }
     }
+#endif
 
     Load_Config();
 
@@ -515,7 +526,7 @@ int main()
     int train_reps = g_config.train_reps;
     do
     {
-        AI_TRAINING(freopen("NUL", "w", stdout));
+        AI_TRAINING(freopen(NULL_DEVICE, "w", stdout));
 
         Load_AI_Weights();
 
@@ -567,11 +578,11 @@ int main()
 
         AI_TRAINING(AI_Learn_From_Game(YOU.HP > 0));
 
-        //AI_TRAINING(Save_AI_Weights());
+        // AI_TRAINING(Save_AI_Weights());
 
         HUMAN_PLAYING(CHN_PRINT("\n按任意键继续...\n"));
         HUMAN_PLAYING(ENG_PRINT("\nPress any key to continue...\n"));
-        HUMAN_PLAYING(_getch());
+        HUMAN_PLAYING(GET_CHAR());
     } while (--train_reps); //  (0); //
 
     end_time = clock();
@@ -587,12 +598,27 @@ int main()
 
     CHN_PRINT("\n按任意键退出程序...\n");
     ENG_PRINT("\nPress any key to exit...\n");
-    _getch();
+    GET_CHAR();
 
     return 0;
 }
 
 #pragma region tool_function
+#ifndef _WIN32 // 这段代码只在非Windows环境下编译
+int getch_linux()
+{
+    struct termios oldt, newt;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+#endif
+
 void act_list_join(Act_list *list, Act_list *source)
 {
     for (int i = 0; i < source->length; i++)
@@ -1618,6 +1644,8 @@ void Load_Config()
 }
 
 // --- AI Optimization ---
+
+#pragma region AIs
 void CPU_logic_V0(Player *CPU, const Player *opponent)
 {
     // 1. 安全地获取当前QI值，防止越界
@@ -2335,3 +2363,66 @@ void Save_AI_Weights()
         printf("[AI weights saved to file.]\n");
     }
 }
+#pragma endregion AIs
+
+// --- The true power —— —— LLM ---
+
+#pragma region LLM
+// void Build_LLM_Prompt(const Player *cpu, const Player *opponent) {
+//     // --- 1. 设定角色和目标 (Role & Goal) ---
+//     printf("You are a master strategist in a mystical world of cultivation. ");
+//     printf("Your name is %s. Your current realm is %s. ", cpu->name, Eng_Realm[cpu->XIUWEI]);
+//     printf("Your goal is to defeat your opponent, %s, whose realm is %s. ", opponent->name, Eng_Realm[opponent->XIUWEI]);
+//     printf("You must be strategic, sometimes aggressive, sometimes defensive, to win.\n");
+
+//     // --- 2. 描述当前战局 (Current State) ---
+//     printf("== Current Battle State ==\n");
+//     printf("Your HP: %d/%d, Your QI: %d/%d\n", cpu->HP, max_HP[cpu->XIUWEI], cpu->QI, max_QI[cpu->XIUWEI]);
+//     printf("Opponent's HP: %d/%d, Opponent's QI: %d/%d\n", opponent->HP, max_HP[opponent->XIUWEI], opponent->QI, max_QI[opponent->XIUWEI]);
+
+//     // --- 3. 描述自身特殊状态 (Your Status Effects) ---
+//     if (cpu->healing > 0) printf("You are currently healing.\n");
+//     if (cpu->enraged > 0) printf("You are enraged, your attacks are stronger.\n");
+
+//     // --- 4. 列出可用技能 (Available Actions) ---
+//     printf("== Your Available Actions ==\n");
+//     printf("You have enough QI to perform the following actions:\n");
+
+//     ActionID affordable_actions[TOTAL_ACTION_TYPES];
+//     int affordable_count = get_affordable_actions(cpu, affordable_actions);
+
+//     for (int i = 0; i < affordable_count; i++) {
+//         Skill *skill = &cpu->learned_skills[affordable_actions[i]];
+//         // 打印技能ID, 名称, 和消耗
+//         printf("ID: %d, Name: %s, Cost: %d\n", skill->action, skill->name, skill->cost);
+//     }
+
+//     // --- 5. 提出明确的问题 (The Question) ---
+//     printf("Based on the current situation, which action ID do you choose? ");
+//     printf("You MUST respond with only the integer ID of your chosen action. For example: 0\n");
+
+//     // --- 6. 结束信号 ---
+//     // 发送一个特殊的结束标记，让Python中间人知道可以发送请求了
+//     printf("END_OF_PROMPT\n");
+//     fflush(stdout); // 极其重要！强制刷新输出缓冲区
+// }
+
+// // 在 QI.c 中
+// void CPU_logic_LLM(Player *cpu, const Player *opponent)
+// {
+//     // 1. 构建并打印给LLM的Prompt
+//     Build_LLM_Prompt(cpu, opponent);
+
+//     // 2. 从标准输入(stdin)等待Python中间人的回应
+//     int chosen_id = -1;
+//     if (scanf("%d", &chosen_id) == 1) {
+//         // 3. 将读取到的ID设置为当前行动
+//         // （这里需要一个安全检查，确保ID是合法的）
+//         cpu->current_action_id = chosen_id;
+//     } else {
+//         // 如果读取失败，选择一个安全的默认行动
+//         cpu->current_action_id = Gain_qi;
+//     }
+// }
+#pragma endregion LLM
+

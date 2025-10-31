@@ -1,10 +1,13 @@
 #ifndef QI_H
 #define QI_H
 
+#pragma region definitions&macros
 // 在包含 windows.h 之前，手动定义我们需要的最低Windows版本。
 // 0x0A00 对应 Windows 10。
 // 这会确保 <windows.h> 包含所有现代终端功能的宏定义。
 #define _WIN32_WINNT 0x0A00
+
+//gcc -o QI QI.c -lm -fexec-charset=UTF-8
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
@@ -16,8 +19,25 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#include <windows.h>
-#include <conio.h>
+
+// --- 【新增】平台检测与适配宏 ---
+#ifdef _WIN32
+    // 如果在Windows环境下编译
+    #include <windows.h> // 包含Windows头文件
+    #include <conio.h>   // 包含conio.h
+    #define CLEAR_SCREEN() system("cls")
+    #define NULL_DEVICE "NUL"
+    #define GET_CHAR() _getch()
+#else
+    // 否则，假定在Linux或其他类Unix环境下
+    #include <termios.h> // 包含termios.h
+    #include <unistd.h>  // 包含unistd.h
+    #define CLEAR_SCREEN() system("clear")
+    #define NULL_DEVICE "/dev/null"
+    // 为Linux定义一个getch的替代品
+    int getch_linux(); 
+    #define GET_CHAR() getch_linux()
+#endif
 
 #define TOTAL_ACTION_AMOUNT 10
 #define REALM_COUNT 10
@@ -45,7 +65,7 @@
 // --------------------
 
 // --- AI训练开关 ---
- #define AI_TRAINING_SET 1
+// #define AI_TRAINING_SET 1
 
 // 定义一个宏来控制 AI_TRAINING 和 HUMAN_PLAYING 的行为
 #ifdef AI_TRAINING_SET
@@ -68,6 +88,7 @@
 #define DIRECT_WRITE(code_block)
 #endif
 // --------------------
+#pragma endregion definitions&macros
 
 // Forward-declarations for circular dependencies
 struct Player_s;
@@ -75,6 +96,7 @@ struct InteractionRule_s;
 
 // --- NEW: Core Structures for Data-Driven Resolution ---
 
+#pragma region bunch_of_structures
 // Defines the results of an interaction, keeping logic and printing separate.
 typedef struct
 {
@@ -217,6 +239,7 @@ typedef struct
     int length;
     int list[TOTAL_ACTION_AMOUNT];
 } Act_list;
+#pragma endregion bunch_of_structures
 
 // --- Global Data Declarations ---
 
@@ -356,5 +379,10 @@ void Load_AI_Weights();
 
 void Save_AI_Weights();
 #pragma endregion AI
+
+// --- LLM Deployment ---
+
+void Build_LLM_Prompt(const Player *cpu, const Player *opponent);
+void CPU_logic_LLM(Player *cpu, const Player *opponent);
 
 #endif // QI_H
