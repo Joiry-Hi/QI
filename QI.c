@@ -81,57 +81,27 @@ void Initialize_Databases()
 {
     // --- 凡人境 (Mortal Realm) 技能 ---
     g_skill_database[Gain_qi] = (Skill){
-        .skill_id = Gain_qi, .name_chn = "集气", .name_eng = "Gain QI", .hotkey = 'Q',
-        .cost = 0, .rank = 0, .type_id = TYPE_BUFF, .attribute_id = ATTR_NONE,
-        .base_power = 1.0f, .target_type = TARGET_SELF
-    };
+        .skill_id = Gain_qi, .name_chn = "集气", .name_eng = "Gain QI", .hotkey = 'Q', .cost = 0, .rank = 0, .type_id = TYPE_BUFF, .attribute_id = ATTR_NONE, .base_power = 1.0f, .target_type = TARGET_SELF};
     g_skill_database[Melee] = (Skill){
-        .skill_id = Melee, .name_chn = "轻击", .name_eng = "Melee", .hotkey = 'A',
-        .cost = 1, .rank = 0, .type_id = TYPE_SLASH, .attribute_id = ATTR_PHYSICAL,
-        .base_power = 1.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Melee, .name_chn = "轻击", .name_eng = "Melee", .hotkey = 'A', .cost = 1, .rank = 0, .type_id = TYPE_SLASH, .attribute_id = ATTR_PHYSICAL, .base_power = 1.0f, .target_type = TARGET_ENEMY};
     g_skill_database[Defend] = (Skill){
-        .skill_id = Defend, .name_chn = "防御", .name_eng = "Defend", .hotkey = 'D',
-        .cost = 1, .rank = 0, .type_id = TYPE_SHIELD, .attribute_id = ATTR_NONE,
-        .base_power = 1.0f, .target_type = TARGET_SELF
-    };
+        .skill_id = Defend, .name_chn = "防御", .name_eng = "Defend", .hotkey = 'D', .cost = 1, .rank = 0, .type_id = TYPE_SHIELD, .attribute_id = ATTR_NONE, .base_power = 1.0f, .target_type = TARGET_SELF};
     g_skill_database[Heal] = (Skill){
-        .skill_id = Heal, .name_chn = "养元", .name_eng = "Heal", .hotkey = 'H',
-        .cost = 1, .rank = 0, .type_id = TYPE_HEAL, .attribute_id = ATTR_LIGHT,
-        .base_power = 1.0f, .target_type = TARGET_SELF
-    };
+        .skill_id = Heal, .name_chn = "养元", .name_eng = "Heal", .hotkey = 'H', .cost = 1, .rank = 0, .type_id = TYPE_HEAL, .attribute_id = ATTR_LIGHT, .base_power = 1.0f, .target_type = TARGET_SELF};
     g_skill_database[Boost] = (Skill){
-        .skill_id = Boost, .name_chn = "战吼", .name_eng = "Warcry", .hotkey = 'C',
-        .cost = 2, .rank = 0, .type_id = TYPE_DEBUFF, .attribute_id = ATTR_NONE,
-        .base_power = 1.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Boost, .name_chn = "战吼", .name_eng = "Warcry", .hotkey = 'C', .cost = 2, .rank = 0, .type_id = TYPE_DEBUFF, .attribute_id = ATTR_NONE, .base_power = 1.0f, .target_type = TARGET_ENEMY};
     g_skill_database[Parry] = (Skill){
-        .skill_id = Parry, .name_chn = "格挡", .name_eng = "Parry", .hotkey = 'P',
-        .cost = 2, .rank = 0, .type_id = TYPE_PARRY, .attribute_id = ATTR_PHYSICAL,
-        .base_power = 0.2f, .target_type = TARGET_SELF
-    };
+        .skill_id = Parry, .name_chn = "格挡", .name_eng = "Parry", .hotkey = 'P', .cost = 2, .rank = 0, .type_id = TYPE_PARRY, .attribute_id = ATTR_PHYSICAL, .base_power = 0.2f, .target_type = TARGET_SELF};
     g_skill_database[Smite] = (Skill){
-        .skill_id = Smite, .name_chn = "重击", .name_eng = "Smite", .hotkey = 'S',
-        .cost = 3, .rank = 0, .type_id = TYPE_SMASH, .attribute_id = ATTR_PHYSICAL,
-        .base_power = 4.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Smite, .name_chn = "重击", .name_eng = "Smite", .hotkey = 'S', .cost = 3, .rank = 0, .type_id = TYPE_SMASH, .attribute_id = ATTR_PHYSICAL, .base_power = 4.0f, .target_type = TARGET_ENEMY};
 
     // --- 炼气境 (Qi Refining) 及以上技能 ---
     g_skill_database[Ranged] = (Skill){
-        .skill_id = Ranged, .name_chn = "火球", .name_eng = "Fireball", .hotkey = 'F',
-        .cost = 2, .rank = 1, .type_id = TYPE_PIERCE, .attribute_id = ATTR_FIRE,
-        .base_power = 1.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Ranged, .name_chn = "火球", .name_eng = "Fireball", .hotkey = 'F', .cost = 2, .rank = 1, .type_id = TYPE_PIERCE, .attribute_id = ATTR_FIRE, .base_power = 1.0f, .target_type = TARGET_ENEMY};
     g_skill_database[Burst] = (Skill){
-        .skill_id = Burst, .name_chn = "风刃", .name_eng = "Wind Blade", .hotkey = 'B',
-        .cost = 3, .rank = 1, .type_id = TYPE_BURST, .attribute_id = ATTR_WIND,
-        .base_power = 1.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Burst, .name_chn = "风刃", .name_eng = "Wind Blade", .hotkey = 'B', .cost = 3, .rank = 1, .type_id = TYPE_BURST, .attribute_id = ATTR_WIND, .base_power = 1.0f, .target_type = TARGET_ENEMY};
     g_skill_database[Terminate] = (Skill){
-        .skill_id = Terminate, .name_chn = "唤雷", .name_eng = "Thunderbolt", .hotkey = 'T',
-        .cost = 6, .rank = 2, .type_id = TYPE_SMASH, .attribute_id = ATTR_THUNDER,
-        .base_power = 5.0f, .target_type = TARGET_ENEMY
-    };
+        .skill_id = Terminate, .name_chn = "唤雷", .name_eng = "Thunderbolt", .hotkey = 'T', .cost = 6, .rank = 2, .type_id = TYPE_SMASH, .attribute_id = ATTR_THUNDER, .base_power = 5.0f, .target_type = TARGET_ENEMY};
 }
 
 // This helper function reduces code duplication for interrupting healing.
@@ -373,6 +343,16 @@ int main()
 
             Action_resolve(&YOU, &CPU);
         }
+
+// --- BLUEPRINT REFACTOR: Correct I/O Management ---
+// 2. (仅在AI训练时) 临时恢复控制台输出，以便显示总结
+#ifdef _WIN32
+        AI_TRAINING(freopen("CONOUT$", "w", stdout));
+#else
+        AI_TRAINING(freopen("/dev/tty", "w", stdout));
+#endif
+        // --- END REFACTOR ---
+
         Game_summary(&YOU, &CPU);
 
         AI_TRAINING(AI_Learn_From_Game(YOU.HP > 0));
@@ -448,7 +428,8 @@ int get_affordable_actions(const Player *player, ActionID affordable_actions[])
 static inline int can_perform_action(const Player *player, ActionID action_id)
 {
     // --- 核心修正: 检查 skill_id 是否不为 None ---
-    if (player->learned_skills[action_id].skill_id != None && player->QI >= player->learned_skills[action_id].cost) {
+    if (player->learned_skills[action_id].skill_id != None && player->QI >= player->learned_skills[action_id].cost)
+    {
         return 1;
     }
     return 0;
@@ -507,19 +488,23 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
 
     // --- BLUEPRINT REFACTOR: Unambiguous Skill Initialization ---
     // 1. 首先，将所有技能槽明确设置为空 (None = -1)
-    for (int i = 0; i < TOTAL_ACTION_TYPES; i++) {
+    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+    {
         YOU->learned_skills[i].skill_id = None;
         CPU->learned_skills[i].skill_id = None;
     }
 
     // 2. 然后，只填充玩家当前境界可用的技能
-    for (int i = 0; i < TOTAL_ACTION_TYPES; i++) {
+    for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
+    {
         // 如果技能的阶级 (rank) 低于或等于玩家的境界 (XIUWEI)
-        if (g_skill_database[i].rank <= YOU->XIUWEI) {
+        if (g_skill_database[i].rank <= YOU->XIUWEI)
+        {
             // 就将这个技能“授予”玩家
             YOU->learned_skills[i] = g_skill_database[i];
         }
-        if (g_skill_database[i].rank <= CPU->XIUWEI) {
+        if (g_skill_database[i].rank <= CPU->XIUWEI)
+        {
             CPU->learned_skills[i] = g_skill_database[i];
         }
     }
@@ -791,12 +776,14 @@ void Player_action(Game game, Player *YOU)
                 ENG_PRINT("<You chose %s!>\n", skill->name_eng);
 
                 // 特殊逻辑处理
-                if (skill->skill_id == Gain_qi) {
+                if (skill->skill_id == Gain_qi)
+                {
                     YOU->QI += YOU->gain_combo;
                     CHN_PRINT("你集气成功，获得%d点气力！你的气力已变为%d。\n", YOU->gain_combo, YOU->QI);
                     ENG_PRINT("You gained %d QI! Your QI is now %d.\n", YOU->gain_combo, YOU->QI);
                 }
-                if (skill->skill_id == Burst) {
+                if (skill->skill_id == Burst)
+                {
                     int burst_cost_per_hit = skill->cost;
                     YOU->burst_count = YOU->QI / burst_cost_per_hit;
                     YOU->action_cost = YOU->burst_count * burst_cost_per_hit;
@@ -871,7 +858,7 @@ void Action_resolve(Player *YOU, Player *CPU) // 互动解算
 
     // 在战斗结算前，双方的 current_action_id 已经确定
     // 因此我们可以安全地在这里记录双方的意图
-    
+
     Oneway_Solution(YOU, CPU);
     Oneway_Solution(CPU, YOU);
 
@@ -879,7 +866,7 @@ void Action_resolve(Player *YOU, Player *CPU) // 互动解算
     if (g_log_count < MAX_LOG_TURNS)
     {
         AI_TurnLog *log = &g_game_log[g_log_count];
-        
+
         // 记录行动 (从 YOU 的视角)
         log->chosen_action = YOU->current_action_id;
         log->opponent_action = CPU->current_action_id;
@@ -888,7 +875,7 @@ void Action_resolve(Player *YOU, Player *CPU) // 互动解算
         // 记录结果 (从 YOU 的视角)
         log->damage_dealt = CPU->damage_received; // YOU 造成的伤害，就是 CPU 受到的伤害
         log->damage_taken = YOU->damage_received; // YOU 受到的伤害
-        
+
         g_log_count++;
     }
     // --- END REFACTOR ---
@@ -931,7 +918,6 @@ void Game_summary(Player *YOU, Player *CPU)
         CHN_PRINT("\033[35m{游戏结束！你们同归于尽了。}\033[0m\n");
         ENG_PRINT("\033[35m{Game Over! You and your enemy perished together。}\033[0m\n");
     }
-    freopen("CON", "w", stdout);
     CHN_PRINT("\033[35m{%s 达到了 %s 修为}\033[0m\n", YOU->name, Realm[YOU->XIUWEI]);
     ENG_PRINT("\033[35m{%s've reached %s Realm}\033[0m\n", YOU->name, Eng_Realm[YOU->XIUWEI]);
     AI_TRAINING(CHN_PRINT("\033[35m{%s 达到了 %s 修为}\033[0m\n", CPU->name, Realm[CPU->XIUWEI]));
@@ -1082,10 +1068,13 @@ void CPU_logic_V0(Player *cpu, const Player *opponent)
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
 
-    if (affordable_count > 0) {
+    if (affordable_count > 0)
+    {
         int random_index = rand() % affordable_count;
         cpu->current_action_id = affordable_actions[random_index];
-    } else {
+    }
+    else
+    {
         cpu->current_action_id = Gain_qi; // 保底措施
     }
 }
@@ -1095,7 +1084,8 @@ void CPU_logic_V1A(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0) {
+    if (affordable_count <= 0)
+    {
         cpu->current_action_id = Gain_qi;
         return;
     }
@@ -1103,19 +1093,24 @@ void CPU_logic_V1A(Player *cpu, const Player *opponent)
     // 默认行动设为最稳妥的集气
     cpu->current_action_id = Gain_qi;
 
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.3f && can_perform_action(cpu, Heal)) {
-        if ((rand() % 10) < 8) { 
+    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.3f && can_perform_action(cpu, Heal))
+    {
+        if ((rand() % 10) < 8)
+        {
             cpu->current_action_id = Heal;
             return;
         }
     }
-    if (opponent->healing > 0 && can_perform_action(cpu, Melee)) {
-        if ((rand() % 10) < 7) { 
+    if (opponent->healing > 0 && can_perform_action(cpu, Melee))
+    {
+        if ((rand() % 10) < 7)
+        {
             cpu->current_action_id = Melee;
             return;
         }
     }
-    if (cpu->QI < 3 && can_perform_action(cpu, Gain_qi)) {
+    if (cpu->QI < 3 && can_perform_action(cpu, Gain_qi))
+    {
         return; // 执行默认的集气
     }
 
@@ -1127,35 +1122,44 @@ void CPU_logic_V1B(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0) {
+    if (affordable_count <= 0)
+    {
         cpu->current_action_id = Gain_qi;
         return;
     }
 
     cpu->current_action_id = Gain_qi; // 默认是集气
 
-    if (can_perform_action(cpu, Smite) && opponent->HP <= 4 * cpu->ATK) {
+    if (can_perform_action(cpu, Smite) && opponent->HP <= 4 * cpu->ATK)
+    {
         cpu->current_action_id = Smite;
         return;
     }
-    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK) {
+    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK)
+    {
         cpu->current_action_id = Melee;
         return;
     }
-    if (cpu->enraged == 0 && can_perform_action(cpu, Boost)) {
-        if ((rand() % 10) < 8) {
+    if (cpu->enraged == 0 && can_perform_action(cpu, Boost))
+    {
+        if ((rand() % 10) < 8)
+        {
             cpu->current_action_id = Boost;
             return;
         }
     }
-    if (can_perform_action(cpu, Smite)) {
-        if ((rand() % 10) < 7) {
+    if (can_perform_action(cpu, Smite))
+    {
+        if ((rand() % 10) < 7)
+        {
             cpu->current_action_id = Smite;
             return;
         }
     }
-    if (can_perform_action(cpu, Melee)) {
-        if ((rand() % 10) < 7) {
+    if (can_perform_action(cpu, Melee))
+    {
+        if ((rand() % 10) < 7)
+        {
             cpu->current_action_id = Melee;
             return;
         }
@@ -1167,22 +1171,27 @@ void CPU_logic_V1C(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0) {
+    if (affordable_count <= 0)
+    {
         cpu->current_action_id = Gain_qi;
         return;
     }
 
     cpu->current_action_id = Gain_qi; // 默认行动是集气
 
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.6f && can_perform_action(cpu, Heal)) {
-        if ((rand() % 10) < 9) {
+    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.6f && can_perform_action(cpu, Heal))
+    {
+        if ((rand() % 10) < 9)
+        {
             cpu->current_action_id = Heal;
             return;
         }
     }
     // 检查对手的 *意图* (current_action_id) 而非已发生的状态
-    if ((opponent->QI > 4 || opponent->enraged > 0) && can_perform_action(cpu, Defend)) {
-        if ((rand() % 10) < 8) {
+    if ((opponent->QI > 4 || opponent->enraged > 0) && can_perform_action(cpu, Defend))
+    {
+        if ((rand() % 10) < 8)
+        {
             cpu->current_action_id = Defend;
             return;
         }
@@ -1194,23 +1203,30 @@ void CPU_logic_V1D(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0) {
+    if (affordable_count <= 0)
+    {
         cpu->current_action_id = Gain_qi;
         return;
     }
-    
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.25f && can_perform_action(cpu, Heal)) {
+
+    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.25f && can_perform_action(cpu, Heal))
+    {
         cpu->current_action_id = Heal;
         return;
     }
 
     cpu->current_action_id = Gain_qi; // 默认永远是修炼
 
-    if (cpu->XIUWEI > opponent->XIUWEI) {
-        if ((rand() % 3) != 0) { // 2/3概率进攻
-            if (can_perform_action(cpu, Smite)) {
+    if (cpu->XIUWEI > opponent->XIUWEI)
+    {
+        if ((rand() % 3) != 0)
+        { // 2/3概率进攻
+            if (can_perform_action(cpu, Smite))
+            {
                 cpu->current_action_id = Smite;
-            } else if (can_perform_action(cpu, Melee)) {
+            }
+            else if (can_perform_action(cpu, Melee))
+            {
                 cpu->current_action_id = Melee;
             }
         }
@@ -1222,26 +1238,32 @@ void CPU_logic_V1E(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0) {
+    if (affordable_count <= 0)
+    {
         cpu->current_action_id = Gain_qi;
         return;
     }
 
     cpu->current_action_id = Gain_qi; // 默认是集气
 
-    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK) {
+    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK)
+    {
         cpu->current_action_id = Melee;
         return;
     }
     // 检查对手的 *意图*
-    if (opponent->current_action_id == Gain_qi && can_perform_action(cpu, Boost)) {
-        if ((rand() % 10) < 9) {
+    if (opponent->current_action_id == Gain_qi && can_perform_action(cpu, Boost))
+    {
+        if ((rand() % 10) < 9)
+        {
             cpu->current_action_id = Boost;
             return;
         }
     }
-    if (can_perform_action(cpu, Melee)) {
-        if ((rand() % 10) < 9) {
+    if (can_perform_action(cpu, Melee))
+    {
+        if ((rand() % 10) < 9)
+        {
             cpu->current_action_id = Melee;
             return;
         }
@@ -1258,9 +1280,11 @@ float EvaluateAction(ActionID action_id, const Player *cpu, const Player *oppone
     float damage = 0;
     int qi_cost = skill->cost;
 
-    if (skill->target_type == TARGET_ENEMY) {
+    if (skill->target_type == TARGET_ENEMY)
+    {
         damage = skill->base_power * cpu->ATK;
-        if (skill->type_id == TYPE_BURST) {
+        if (skill->type_id == TYPE_BURST)
+        {
             // For Burst, the real cost is all QI, damage scales with it.
             int burst_cost_per_hit = (skill->cost > 0) ? skill->cost : 1;
             damage *= (cpu->QI / burst_cost_per_hit);
@@ -1530,7 +1554,7 @@ void AI_Learn_From_Game(int ai_won)
         // [正向] 成功防御大招
         if ((log->chosen_action == Defend || log->chosen_action == Parry) && log->opponent_action == Smite && log->damage_taken < 4)
             turn_reward += 50;
-        
+
         // [负向] 被斩杀
         if (log->ai_hp > 0 && (log->ai_hp - log->damage_taken) <= 0)
             turn_reward -= 100;
@@ -1548,7 +1572,8 @@ void AI_Learn_From_Game(int ai_won)
             turn_reward -= 40;
 
         // 如果没有触发任何关键事件，则根据最终胜负给予基础奖惩
-        if (turn_reward == 0.0f) {
+        if (turn_reward == 0.0f)
+        {
             turn_reward = ai_won ? 1.0f : -1.0f;
         }
 
