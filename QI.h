@@ -261,12 +261,12 @@ int InterruptHealing(const Player *attacker, Player *target);
 // AI Decision System
 int get_affordable_actions(const Player *player, ActionID affordable_actions[]);
 float EvaluateAction(ActionID action_id, const Player *cpu, const Player *opponent, const AI_Weights *weights);
-void CPU_logic_V0(Player *cpu, const Player *opponent);
-void CPU_logic_V1A(Player *cpu, const Player *opponent);
-void CPU_logic_V1B(Player *cpu, const Player *opponent);
-void CPU_logic_V1C(Player *cpu, const Player *opponent);
-void CPU_logic_V1D(Player *cpu, const Player *opponent);
-void CPU_logic_V1E(Player *cpu, const Player *opponent);
+void CPU_logic_V0_Random(Player *cpu, const Player *opponent);
+void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent);
+void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent);
+void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent);
+void CPU_logic_V1D_Ascetic(Player *cpu, const Player *opponent);
+void CPU_logic_V1E_Gambler(Player *cpu, const Player *opponent);
 void CPU_logic_V2(Player *cpu, const Player *opponent);
 void CPU_logic_V2A(Player *cpu, const Player *opponent, int A);
 

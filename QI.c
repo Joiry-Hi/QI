@@ -342,19 +342,19 @@ int main()
             switch (game.opponent_type)
             {
             case 0:
-                CPU_logic_V1A(&CPU, &YOU);
+                CPU_logic_V1A_Disruptor(&CPU, &YOU);
                 break;
             case 1:
-                CPU_logic_V1B(&CPU, &YOU);
+                CPU_logic_V1B_Berserker(&CPU, &YOU);
                 break;
             case 2:
-                CPU_logic_V1C(&CPU, &YOU);
+                CPU_logic_V1C_Turtle(&CPU, &YOU);
                 break;
             case 3:
-                CPU_logic_V1D(&CPU, &YOU);
+                CPU_logic_V1D_Ascetic(&CPU, &YOU);
                 break;
             case 4:
-                CPU_logic_V1E(&CPU, &YOU);
+                CPU_logic_V1E_Gambler(&CPU, &YOU);
                 break;
             case 5:
                 CPU_logic_V2A(&CPU, &YOU, 0);
@@ -366,28 +366,28 @@ int main()
                 switch (game.current_general_id)
                 {
                 case 0:
-                    CPU_logic_V1A(&CPU, &YOU);
+                    CPU_logic_V1A_Disruptor(&CPU, &YOU);
                     break;
                 case 1:
-                    CPU_logic_V1B(&CPU, &YOU);
+                    CPU_logic_V1B_Berserker(&CPU, &YOU);
                     break;
                 case 2:
-                    CPU_logic_V1C(&CPU, &YOU);
+                    CPU_logic_V1C_Turtle(&CPU, &YOU);
                     break;
                 case 3:
-                    CPU_logic_V1D(&CPU, &YOU);
+                    CPU_logic_V1D_Ascetic(&CPU, &YOU);
                     break;
                 case 4:
-                    CPU_logic_V1E(&CPU, &YOU);
+                    CPU_logic_V1E_Gambler(&CPU, &YOU);
                     break;
                 default:
-                    CPU_logic_V0(&CPU, &YOU);
+                    CPU_logic_V0_Random(&CPU, &YOU);
                     break;
                 }
                 break;
 
             default:
-                CPU_logic_V0(&CPU, &YOU);
+                CPU_logic_V0_Random(&CPU, &YOU);
                 break;
             }
             printf("\033[0m");
@@ -549,7 +549,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
     game->round_number = 0;
-    game->current_general_id = 1; // 默认以“狂战士”开局
+    game->current_general_id = rand() % 5; // 开局随机选一个将军
     game->history_log_count = 0;
 
     ENG_PRINT("\n\033[32mWelcome to the QI Game!\033[0m\n");
@@ -577,8 +577,8 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     switch (game->opponent_type)
     {
     case 0:
-        CHN(CPU->name = "生存主义者");
-        ENG(CPU->name = "Survivor");
+        CHN(CPU->name = "破法者");
+        ENG(CPU->name = "Disruptor");
         break;
     case 1:
         CHN(CPU->name = "狂战士");
@@ -593,8 +593,8 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
         ENG(CPU->name = "Ascetic");
         break;
     case 4:
-        CHN(CPU->name = "快攻手");
-        ENG(CPU->name = "Quick Hand");
+        CHN(CPU->name = "豪赌徒");
+        ENG(CPU->name = "Gambler");
         break;
     case 5:
         CHN(CPU->name = "狂才");
@@ -637,8 +637,8 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     // --- END REFACTOR ---
 }
 
+#pragma region status_resolve
 // --- BLUEPRINT REFACTOR: Modular Status Resolution ---
-
 // 模块 1: 处理行动消耗与状态重置
 static void Resolve_Action_Costs_And_Resets(Player *player)
 {
@@ -782,6 +782,7 @@ static void Resolve_Breakthrough(Player *player)
         }
     }
 }
+#pragma endregion status_resolve
 
 void Status_settlement(Player *player)
 {
@@ -1214,7 +1215,7 @@ void Load_Config()
 // --- BLUEPRINT REFACTOR: All Rule-Based AIs Adapted ---
 
 // V0: 最简单的AI，从所有可用行动中随机选择
-void CPU_logic_V0(Player *cpu, const Player *opponent)
+void CPU_logic_V0_Random(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
@@ -1230,195 +1231,148 @@ void CPU_logic_V0(Player *cpu, const Player *opponent)
     }
 }
 
-// V1A - 生存主义者 (已适配)
-void CPU_logic_V1A(Player *cpu, const Player *opponent)
+// V1A - 干扰者 (Disruptor)
+// 战术思想: 胜利不是通过击败对手，而是通过让他无法执行自己的战术来取得。
+void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 {
-    ActionID affordable_actions[TOTAL_ACTION_TYPES];
-    int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0)
-    {
-        cpu->current_action_id = Gain_qi;
-        return;
-    }
-
-    // 默认行动设为最稳妥的集气
-    cpu->current_action_id = Gain_qi;
-
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.3f && can_perform_action(cpu, Heal))
-    {
-        if ((rand() % 10) < 8)
-        {
-            cpu->current_action_id = Heal;
-            return;
-        }
-    }
-    if (opponent->healing > 0 && can_perform_action(cpu, Melee))
-    {
-        if ((rand() % 10) < 7)
-        {
-            cpu->current_action_id = Melee;
-            return;
-        }
-    }
-    if (cpu->QI < 3 && can_perform_action(cpu, Gain_qi))
-    {
-        return; // 执行默认的集气
-    }
-
-    cpu->current_action_id = affordable_actions[rand() % affordable_count];
-}
-
-// V1B - 狂战士 (已适配)
-void CPU_logic_V1B(Player *cpu, const Player *opponent)
-{
-    ActionID affordable_actions[TOTAL_ACTION_TYPES];
-    int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0)
-    {
-        cpu->current_action_id = Gain_qi;
-        return;
-    }
-
-    cpu->current_action_id = Gain_qi; // 默认是集气
-
-    if (can_perform_action(cpu, Smite) && opponent->HP <= 4 * cpu->ATK)
-    {
-        cpu->current_action_id = Smite;
-        return;
-    }
-    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK)
-    {
+    // 优先级1：打断关键行动
+    if (opponent->healing > 0 && can_perform_action(cpu, Melee)) {
         cpu->current_action_id = Melee;
         return;
     }
-    if (cpu->enraged == 0 && can_perform_action(cpu, Boost))
-    {
-        if ((rand() % 10) < 8)
-        {
-            cpu->current_action_id = Boost;
-            return;
-        }
-    }
-    if (can_perform_action(cpu, Smite))
-    {
-        if ((rand() % 10) < 7)
-        {
-            cpu->current_action_id = Smite;
-            return;
-        }
-    }
-    if (can_perform_action(cpu, Melee))
-    {
-        if ((rand() % 10) < 7)
-        {
-            cpu->current_action_id = Melee;
-            return;
-        }
-    }
-}
 
-// V1C - 神龟流 (已适配)
-void CPU_logic_V1C(Player *cpu, const Player *opponent)
-{
-    ActionID affordable_actions[TOTAL_ACTION_TYPES];
-    int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0)
-    {
-        cpu->current_action_id = Gain_qi;
+    // 优先级2：破坏资源 (假设已有 Qi Siphon 技能，ID为 Qi_Siphon)
+    /*
+    if (opponent->QI > 3 && can_perform_action(cpu, Qi_Siphon)) {
+        cpu->current_action_id = Qi_Siphon;
+        return;
+    }
+    */
+
+    // 优先级3：削弱对手 (假设已有 Warcry 技能)
+    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, Boost)) {
+        cpu->current_action_id = Boost; // 在对手准备进攻时削弱他
         return;
     }
 
-    cpu->current_action_id = Gain_qi; // 默认行动是集气
-
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.6f && can_perform_action(cpu, Heal))
-    {
-        if ((rand() % 10) < 9)
-        {
-            cpu->current_action_id = Heal;
-            return;
-        }
-    }
-    // 检查对手的 *意图* (current_action_id) 而非已发生的状态
-    if ((opponent->QI > 4 || opponent->enraged > 0) && can_perform_action(cpu, Defend))
-    {
-        if ((rand() % 10) < 8)
-        {
-            cpu->current_action_id = Defend;
-            return;
-        }
+    // 如果没有可干扰的，就进行低成本骚扰或集气
+    if (can_perform_action(cpu, Melee)) {
+        cpu->current_action_id = Melee;
+    } else {
+        cpu->current_action_id = Gain_qi;
     }
 }
 
-// V1D - 苦修者 (已适配)
-void CPU_logic_V1D(Player *cpu, const Player *opponent)
+// V1B - 狂战士 (重写版)
+// 战术思想: 纯粹的进攻。它的字典里没有防御和治疗。
+// 决策优先级: 1.斩杀 -> 2.最高伤害 -> 3.为下一次攻击集气。
+void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent)
 {
-    ActionID affordable_actions[TOTAL_ACTION_TYPES];
-    int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0)
-    {
-        cpu->current_action_id = Gain_qi;
+    // --- 斩杀判定 (Kill Shot Priority) ---
+    // 1. 检查最强的攻击能否斩杀
+    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK) {
+        cpu->current_action_id = Smite;
+        return;
+    }
+    // 2. 检查较弱的攻击能否斩杀
+    if (can_perform_action(cpu, Melee) && opponent->HP <= g_skill_database[Melee].base_power * cpu->ATK) {
+        cpu->current_action_id = Melee;
+        return;
+    }
+    // (如果未来有更多攻击技能，按威力从高到低在此处添加斩杀判定)
+
+    // --- 最大伤害输出 (Max Damage Priority) ---
+    // 如果不能斩杀，就打出当前能用的最高伤害技能
+    if (can_perform_action(cpu, Smite)) {
+        cpu->current_action_id = Smite;
+        return;
+    }
+    if (can_perform_action(cpu, Melee)) {
+        cpu->current_action_id = Melee;
         return;
     }
 
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.25f && can_perform_action(cpu, Heal))
-    {
+    // --- 准备阶段 (Preparation Priority) ---
+    // 如果连最基础的攻击都无法发动，则必定集气，为下一次进攻做准备。
+    cpu->current_action_id = Gain_qi;
+}
+
+// V1C - 神龟流 (重写版)
+// 战术思想: 纯粹的生存。在确保自身安全之前，绝不主动进攻。
+// 决策优先级: 1.紧急治疗 -> 2.预判性防御 -> 3.为防御和治疗集气。
+void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent)
+{
+    // --- 生存判定 (Survival Priority) ---
+    // 1. 如果血量低于80%，且能够治疗，则必定治疗。
+    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.8f && can_perform_action(cpu, Heal)) {
         cpu->current_action_id = Heal;
         return;
     }
 
-    cpu->current_action_id = Gain_qi; // 默认永远是修炼
-
-    if (cpu->XIUWEI > opponent->XIUWEI)
-    {
-        if ((rand() % 3) != 0)
-        { // 2/3概率进攻
-            if (can_perform_action(cpu, Smite))
-            {
-                cpu->current_action_id = Smite;
-            }
-            else if (can_perform_action(cpu, Melee))
-            {
-                cpu->current_action_id = Melee;
-            }
-        }
+    // --- 威胁规避 (Threat Evasion Priority) ---
+    // 1. 如果对手QI很高(预示着强力攻击)，且能够防御，则优先防御。
+    if (opponent->QI >= 4 && can_perform_action(cpu, Defend)) {
+        cpu->current_action_id = Defend;
+        return;
     }
-}
-
-// V1E - 快攻压制 (已适配)
-void CPU_logic_V1E(Player *cpu, const Player *opponent)
-{
-    ActionID affordable_actions[TOTAL_ACTION_TYPES];
-    int affordable_count = get_affordable_actions(cpu, affordable_actions);
-    if (affordable_count <= 0)
-    {
-        cpu->current_action_id = Gain_qi;
+    // 2. 如果对手处于激怒状态，也进行防御。
+    if (opponent->enraged > 0 && can_perform_action(cpu, Defend)) {
+        cpu->current_action_id = Defend;
+        return;
+    }
+    // 3. 格挡也是一种有效的防御手段。
+    if (can_perform_action(cpu, Parry)) {
+        cpu->current_action_id = Parry;
         return;
     }
 
-    cpu->current_action_id = Gain_qi; // 默认是集气
+    // --- 准备阶段 (Preparation Priority) ---
+    // 如果自身状态良好且敌人威胁不大，则集气，为未来的防御和治疗做准备。
+    cpu->current_action_id = Gain_qi;
+}
 
-    if (can_perform_action(cpu, Melee) && opponent->HP <= 1 * cpu->ATK)
-    {
+// V1D - 苦修者 (新增)
+// 战术思想: 纯粹的发育。以最快速度达到境界巅峰是唯一目标。HP只是用于换取时间的资源。
+// 决策优先级: 1.能赢吗？ -> 2.集气！
+void CPU_logic_V1D_Ascetic(Player *cpu, const Player *opponent)
+{
+    // --- 胜利判定 (Win Condition Priority) ---
+    // 苦修者不是傻子，如果能一击结束战斗，它会毫不犹豫地出手。
+    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK) {
+        cpu->current_action_id = Smite;
+        return;
+    }
+    if (can_perform_action(cpu, Melee) && opponent->HP <= g_skill_database[Melee].base_power * cpu->ATK) {
         cpu->current_action_id = Melee;
         return;
     }
-    // 检查对手的 *意图*
-    if (opponent->current_action_id == Gain_qi && can_perform_action(cpu, Boost))
-    {
-        if ((rand() % 10) < 9)
-        {
-            cpu->current_action_id = Boost;
-            return;
-        }
+
+    // --- 唯一信条：集气 (The One True Path) ---
+    // 只要不能立刻获胜，无论自身血量多低，无论敌人状态如何，它都只会做一件事：集气。
+    // 这是它通往更高境界的唯一道路。
+    cpu->current_action_id = Gain_qi;
+}
+
+// V1E - 豪赌徒 (Gambler)
+// 战术思想: 要么不出手，出手必定是雷霆一击。
+void CPU_logic_V1E_Gambler(Player *cpu, const Player *opponent)
+{
+    // 寻找当前可用的、威力最大的攻击技能
+    ActionID best_attack = None;
+    if (can_perform_action(cpu, Terminate)) {
+        best_attack = Terminate;
+    } else if (can_perform_action(cpu, Smite)) {
+        best_attack = Smite;
+    } // ...可以扩展更多高威力技能
+
+    // 如果能发动最强攻击，则不惜一切代价发动
+    if (best_attack != None) {
+        cpu->current_action_id = best_attack;
+        return;
     }
-    if (can_perform_action(cpu, Melee))
-    {
-        if ((rand() % 10) < 9)
-        {
-            cpu->current_action_id = Melee;
-            return;
-        }
-    }
+
+    // 否则，心无旁骛地集气，为下一次的全力一击做准备
+    cpu->current_action_id = Gain_qi;
 }
 
 // Evaluateaction - AI的大脑 (V2 - 拥有长远规划和风险意识)
@@ -1978,7 +1932,7 @@ void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, co
     printf("[0: Survivor], [1: Berserker], [2: Turtle], [3: Ascetic], [4: Quick Hand]\n");
 
     // --- 6. 核心问题 ---
-    printf("Grand Marshal, should we switch generals? Please respond in JSON format: {\"next_general_id\": <id>, \"reasoning\": \"...\"}\n");
+    printf("Grand Marshal, what is your strategic order? Please respond in JSON format: {\"order\": \"<SWITCH|CONFIRM>\", \"general_id\": <id>, \"reasoning\": \"...\"}\n");
 
     // --- 7. 结束信号 ---
     printf("END_OF_PROMPT\n");

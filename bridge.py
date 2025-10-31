@@ -14,8 +14,19 @@ COLOR_RESET = "\033[0m"
 # --- 配置 ---
 # 注意：我们将使用 chat 接口，因为它对两种模式都更健壮
 LLM_API_URL = "http://localhost:11434/api/chat"
-LLM_MODEL_NAME = "mistral"
 GAME_EXECUTABLE = "./QI"
+
+# 原来的配置:
+LLM_MODEL_NAME = "mistral"
+
+# 更换为Llama 3 (推荐):
+# LLM_MODEL_NAME = "llama3:8b"
+
+# 或者更换为Gemma:
+# LLM_MODEL_NAME = "gemma:7b"
+
+# 或者更换为Phi-3 Mini:
+# LLM_MODEL_NAME = "phi3:mini"
 
 # --- 全局状态变量 ---
 executor = ThreadPoolExecutor(max_workers=1)
