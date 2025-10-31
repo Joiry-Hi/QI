@@ -1,7 +1,12 @@
 # QI
 修仙小游戏——看《凡人修仙传》时的一时兴起
 
+windows系统中借助.vscode文件夹中的配置文件
 编译得到.exe文件即可直接运行
+
+linux系统中使用
+“gcc -o QI QI.c -lm -fexec-charset=UTF-8”指令
+即可编译
 
 QI.c是函数定义与主函数所在
 QI.h负责定义各类数据结构

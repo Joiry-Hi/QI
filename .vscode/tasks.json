@@ -10,7 +10,7 @@
                 "${fileDirname}\\*.c",
                 "-o",
                 "${fileDirname}\\QI.exe",
-                "-fexec-charset=GBK"
+                //"-fexec-charset=GBK"
             ],
             "options": {
                 "cwd": "${fileDirname}"
