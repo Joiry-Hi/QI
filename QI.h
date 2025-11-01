@@ -36,7 +36,7 @@ int getch_linux();
 #define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
 
 // 中文开关
-#define CHINESE_GAME_LOG
+//#define CHINESE_GAME_LOG
 
 #ifdef CHINESE_GAME_LOG
 #define CHN_PRINT(...) printf(__VA_ARGS__)

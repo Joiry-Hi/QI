@@ -11,7 +11,7 @@
 QI = 0
 
 # 初始境界 (Initial Realm Level, 0=Mortal, 1=Qi Refining, etc.)
-XIUWEI = 1
+XIUWEI = 2
 
 # 初始闪避率 (Initial Evade Chance, 0.05 = 5%)
 Evade = 0

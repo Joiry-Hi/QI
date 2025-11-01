@@ -22,6 +22,15 @@ int max_HP[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
 int max_QI[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
 int Yuan[10] = {1, 2, 5, 10, 20, 100, 500, 1000, 5000, 10000};
 
+const char *GENERAL_NAMES[] = {
+    "Disruptor", // ID 0
+    "Berserker", // ID 1
+    "Turtle",    // ID 2
+    "Ascetic",   // ID 3
+    "Gambler",   // ID 4
+    "Random"     // ID 5 (用于default case)
+};
+
 const char *Eng_Root_Names[TOTAL_ROOT_TYPES] = {
     "Mortal Root",
     "Heavenly Root",
@@ -1884,13 +1893,13 @@ void Build_Marshal_Genesis_Prompt()
 
     // === 将领名册 (Roster of Generals) ===
     printf("== Your Available Generals ==\n");
-    printf("You command six generals, each a master of a specific combat doctrine. You will deploy them by their ID.\n");
-    printf("- **[ID 0] V0_Random (The Fool)**: Unpredictable and chaotic. A desperate last resort or a tool to sow confusion. Use with extreme caution.\n");
-    printf("- **[ID 1] V1A_Disruptor (The Saboteur)**: Master of interference. Excels at interrupting enemy actions (like healing) and weakening them. Deploys against opponents who rely on specific combos or buffs.\n");
-    printf("- **[ID 2] V1B_Berserker (The Vanguard)**: A pure offensive force. Relentlessly attacks to overwhelm the enemy. Deploys when you have a clear HP/QI advantage or against a non-threatening, developing opponent.\n");
-    printf("- **[ID 3] V1C_Turtle (The Iron Wall)**: The ultimate defensive specialist. Prioritizes healing and defending to outlast any assault. Deploys against aggressive opponents or to safely accumulate QI.\n");
-    printf("- **[ID 4] V1D_Ascetic (The Monk)**: Single-mindedly focused on accumulating QI for a breakthrough. Ignores worldly conflict for ultimate power. Deploys when the opponent is passive and a realm advantage is the clearest path to victory.\n");
-    printf("- **[ID 5] V1E_Gambler (The Executioner)**: Saves all resources for a single, devastating blow. Deploys to break through heavy defenses or to perform a high-risk, high-reward finishing move.\n\n");
+    printf("You command several generals, each a master of a specific combat doctrine. You will deploy them by their ID.\n");
+    printf("- **[ID 0] V1A_Disruptor (The Saboteur)**: Master of interference...\n");
+    printf("- **[ID 1] V1B_Berserker (The Vanguard)**: A pure offensive force...\n");
+    printf("- **[ID 2] V1C_Turtle (The Iron Wall)**: The ultimate defensive specialist...\n");
+    printf("- **[ID 3] V1D_Ascetic (The Monk)**: Single-mindedly focused on accumulating QI...\n");
+    printf("- **[ID 4] V1E_Gambler (The Executioner)**: Saves all resources for a single, devastating blow...\n");
+    printf("- **[ID 5] V0_Random (The Fool)**: Unpredictable and chaotic. A desperate last resort...\n\n");
 
     // === 任务指令 (Mission Command) ===
     printf("After each 5-turn strategic cycle, you will receive a battlefield report. Your task is to analyze it, reference this manual, and issue a command in the specified JSON format: {\"next_general_id\": <id>, \"reasoning\": \"...\"}. Your reasoning should reflect your strategic understanding.\n");
@@ -2020,7 +2029,7 @@ void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, co
     // --- 6. 核心问题 ---
     printf("Grand Marshal, what is your strategic order? Please respond in JSON format: {\"order\": \"<SWITCH|CONFIRM>\", \"general_id\": <id>, \"reasoning\": \"...\"}\n");
     printf("REMINDER: Your response MUST be a JSON object containing the 'next_general_id' key and a 'reasoning' key.\n");
-    
+
     // --- 7. 结束信号 ---
     printf("END_OF_PROMPT\n");
     fflush(stdout);
@@ -2037,17 +2046,19 @@ void Request_Strategic_Decision(Player *cpu, Player *opponent, Game *game)
     if (fgets(buffer, sizeof(buffer), stdin) != NULL)
     {
         new_general_id = atoi(buffer);
-        // 安全检查：确保ID在有效范围内
-        if (new_general_id >= 0 && new_general_id <= 4)
-        { // 假设我们有5个将军
+        // 安全检查：确保ID在有效范围内 (假设我们有6个将军，ID 0-5)
+        if (new_general_id >= 0 && new_general_id <= 5)
+        {
             if (game->current_general_id != new_general_id)
             {
-                printf("\033[95m[STRATEGIC SHIFT] Grand Marshal has ordered a change of command! General %d is now in charge!\033[0m\n", new_general_id);
+                printf("\033[95m[STRATEGIC SHIFT] Grand Marshal has ordered a change of command! General %s (ID %d) is now in charge!\033[0m\n",
+                       GENERAL_NAMES[new_general_id], new_general_id);
                 game->current_general_id = new_general_id;
             }
             else
             {
-                printf("\033[95m[STRATEGIC CONFIRMATION] Grand Marshal confirms current strategy is optimal. Proceeding with General %d.\033[0m\n", new_general_id);
+                printf("\033[95m[STRATEGIC CONFIRMATION] Grand Marshal confirms current strategy is optimal. Proceeding with General %s (ID %d).\033[0m\n",
+                       GENERAL_NAMES[new_general_id], new_general_id);
             }
         }
     }
