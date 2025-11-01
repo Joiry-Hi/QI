@@ -254,7 +254,6 @@ void Oneway_Solution(Player *attacker, Player *defender)
 // --- Main Game Loop and Other Functions (with fixes) ---
 int main()
 {
-// SetConsoleOutputCP(GetConsoleOutputCP());
 // 激活Windows控制台的虚拟终端处理功能
 // --- 【核心修改】使用条件编译进行平台适配 ---
 #ifdef _WIN32
@@ -324,19 +323,19 @@ int main()
                 break; // 跳出这个 while 循环，直接进入 Game_summary
             }
 
-            // --- 模式7: 将帅分级 AI ---
-            if (game.opponent_type == 7)
-            {
-                if (game.round_number > 0 && game.round_number % STRATEGIC_CYCLE == 0)
-                {
-                    Request_Strategic_Decision(&CPU, &YOU, &game);
-                    game.history_log_count = 0;
-                }
+            // 新的、更具兼容性的代码:
+            // 只要是需要LLM思考的模式（6号或7号的特定周期），就提前生成Prompt
+            if (game.opponent_type == 6)
+            { // “事无巨细”模式，每回合都提前生成
+                Build_Turn_Update_Prompt(&CPU, &YOU);
             }
-            // --- 模式6: 每回合决策 AI ---
-            else if (game.opponent_type == 6)
+            else if (game.opponent_type == 7 && game.round_number > 0 && game.round_number % STRATEGIC_CYCLE == 0) // “将帅分级”模式，在战略周期生成
             {
-                CPU_logic_LLM(&CPU, &YOU);
+                // a. 请求大元帅（LLM）进行战略决策
+                Request_Strategic_Decision(&CPU, &YOU, &game);
+
+                // b. 决策后，重置历史记录
+                game.history_log_count = 0;
             }
 
             HUMAN_PLAYING(Player_action(game, &YOU));
@@ -347,7 +346,9 @@ int main()
                 CPU_logic_V2A_Tuned(&YOU, &CPU, 0);
 
                 // 2. 调用通用的行动宣告函数，来打印“YOU”的决策
-                CPU_action(&YOU);)
+                CPU_action(&YOU);
+
+            )
 
             printf("\033[91m");
             switch (game.opponent_type)
@@ -432,10 +433,25 @@ int main()
 
         // AI_TRAINING(Save_AI_Weights());
 
-        HUMAN_PLAYING(CHN_PRINT("\n按任意键继续...\n"));
-        HUMAN_PLAYING(ENG_PRINT("\nPress any key to continue...\n"));
-        HUMAN_PLAYING(fflush(stdout)); // <-- 关键修正
-        HUMAN_PLAYING(GET_CHAR());
+        HUMAN_PLAYING(CHN_PRINT("\n按回车键继续...\n"));
+        HUMAN_PLAYING(ENG_PRINT("\nPress ENTER to continue...\n"));
+        HUMAN_PLAYING(fflush(stdout));
+
+        // 在AI训练模式下，我们不需要任何等待，直接进入下一轮
+        AI_TRAINING(
+            // 在这里可以加一个极短的延时，如果需要的话，但通常不需要
+        )
+
+        // 只在人类对战模式下，执行等待逻辑
+        HUMAN_PLAYING(
+            // 1. 发送一个明确的信号，告诉Python现在轮到人类输入了
+            printf("##CMD##:INPUT_REQUIRED\n");
+            fflush(stdout);
+
+            // 2. 调用 getchar() 来等待Python端发送过来的任何字符
+            // Python端的 input() 会等待用户按回车，然后将整行发过来
+            // 这里的 getchar() 只是为了消耗掉那个输入，起到阻塞等待的作用
+            getchar();)
     } while (--train_reps); //  (0); //
 
     end_time = clock();
@@ -449,28 +465,14 @@ int main()
     ENG_PRINT(" Time elapsed: %.2f s\n", cpu_time_used);
     printf("========================================\n");
 
-    CHN_PRINT("\n按任意键退出程序...\n");
-    ENG_PRINT("\nPress any key to exit...\n");
+    CHN_PRINT("\n按回车键退出程序...\n");
+    ENG_PRINT("\nPress ENTER to exit...\n");
     GET_CHAR();
 
     return 0;
 }
 
 #pragma region tool_function
-#ifndef _WIN32 // 这段代码只在非Windows环境下编译
-int getch_linux()
-{
-    struct termios oldt, newt;
-    int ch;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    return ch;
-}
-#endif
 
 void clear_buffer()
 {
@@ -611,19 +613,17 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
         CHN(CPU->name = "狂才");
         ENG(CPU->name = "Crazy Genius");
         break;
-    case 6:
+    case 6: // “事无巨细”模式
         CHN(CPU->name = "悟道者");
         ENG(CPU->name = "Enlightened One");
-        // 模式6: 发送 NEW_GAME_START 和 创世提示词
-        printf("##CMD##:NEW_GAME_START\n");
+        printf("##CMD##:NEW_GAME_START_PER_TURN\n"); // <-- 新的、专用的信号
         fflush(stdout);
-        Build_Genesis_Prompt();
+        Build_Per_Turn_Genesis_Prompt(); // <-- 调用新的开场白函数
         break;
-    case 7:
+    case 7: // “将帅分级”模式
         CHN(CPU->name = "大元帅");
         ENG(CPU->name = "Grand Marshal");
-        // 模式7: 只发送 NEW_GAME_START，等待战略周期
-        printf("##CMD##:NEW_GAME_START\n");
+        printf("##CMD##:NEW_GAME_START_MARSHAL\n"); // <-- 为将帅模式也创建一个专用信号
         fflush(stdout);
         Build_Marshal_Genesis_Prompt();
         break;
@@ -896,12 +896,10 @@ void Player_action(Game game, Player *YOU)
             }
         }
         printf("\n");
-        // --- BLUEPRINT REFACTOR: Precise Input Signaling ---
-        // 1. 发送一个明确的、机器可读的信号
+
+        // a. 发送“取回结果”信号
         printf("##CMD##:INPUT_REQUIRED\n");
-        // 2. 立即刷新，确保信号被Python立即收到
         fflush(stdout);
-        // --- END REFACTOR ---
 
         // --- BLUEPRINT REFACTOR: Robust IPC Input ---
         char buffer[16];   // 一个小缓冲区来接收输入行
@@ -987,7 +985,7 @@ void CPU_action(Player *player)
     {
     case Gain_qi:
         player->QI += player->gain_combo;
-        CHN_PRINT("%s 集气了 %d 点气! 它的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
+        CHN_PRINT("%s 集了 %d 点气! 它的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
         ENG_PRINT("%s gained %d QI! Its QI is now %d.\n", player->name, player->gain_combo, player->QI);
         break;
     case Burst:
@@ -1847,30 +1845,16 @@ void Save_AI_Weights()
 // --- The true power —— —— LLM ---
 #pragma region LLM
 // --- BLUEPRINT v2.0: Genesis Prompt ---
-void Build_Genesis_Prompt()
+void Build_Per_Turn_Genesis_Prompt()
 {
     printf("##CMD##:START_PROMPT\n");
-    fflush(stdout); // <-- 关键修复：立刻发送命令
-
-    // --- 1. 角色与目标 (Role & Goal) ---
-    printf("You are a master strategist in a mystical world of cultivation. Your goal is to win. ");
-    printf("You are calm, calculating, and think step-by-step.\n");
-
-    // --- 2. 世界法则 (World Rules) ---
-    printf("== Core Rules ==\n");
-    printf("- You win if the opponent's HP drops to 0.\n");
-    printf("- QI is the resource for most actions. Gaining QI is a fundamental move.\n");
-    printf("- Breakthroughs to higher realms (XIUWEI) are critical for long-term victory, which requires accumulating QI to the maximum.\n");
-
-    // --- 3. 沟通契约 (Communication Contract) ---
-    printf("== Communication Protocol ==\n");
-    printf("From now on, for every turn, you MUST respond in a strict JSON format. ");
-    printf("The JSON object must contain two keys: 'action_id' (an integer representing your chosen move) and 'reasoning' (a brief explanation of your strategy).\n");
-    printf("Example response:\n{\n  \"action_id\": 0,\n  \"reasoning\": \"My QI is low, so I must gather more to prepare for future attacks.\"\n}\n");
-
-    // --- 4. 结束信号 ---
+    // 这是一个更简洁、更API友好的开场白
+    printf("You are a master strategist in a turn-based cultivation game. Your goal is to defeat your opponent by reducing their HP to zero.\n");
+    printf("For every turn, you will receive a status update and a list of available actions with their IDs.\n");
+    printf("You MUST respond with a single, valid JSON object containing two keys: 'action_id' (the integer ID of your chosen action) and 'reasoning' (a brief strategic explanation).\n");
+    printf("Example of a valid response: {\"action_id\": 0, \"reasoning\": \"My QI is low, so I need to gather more.\"}\n");
     printf("END_OF_PROMPT\n");
-    fflush(stdout); // 极其重要！确保创世指令被立即发送
+    fflush(stdout);
 }
 
 void Build_Marshal_Genesis_Prompt()
@@ -1942,7 +1926,7 @@ void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent)
 
 void CPU_logic_LLM(Player *cpu, const Player *opponent)
 {
-    // 函数现在唯一的职责就是阻塞并等待Python端喂入LLM的决策结果
+    // 2. (旧) 阻塞并等待Python返回结果
     int chosen_id = -1;
     char buffer[16];
 

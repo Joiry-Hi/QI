@@ -9,6 +9,10 @@ import logging # <-- 新增导入
 from logging.handlers import RotatingFileHandler # <-- 新增导入
 import os # <-- 新增：用于读取环境变量
 import google.generativeai as genai # <-- 新增：导入Gemini库
+from dotenv import load_dotenv # <-- 新增导入
+import dashscope # <-- 新增导入
+
+load_dotenv()
 
 # --- 1. 设置一个专业的、可轮换的日志记录器 ---
 log_file = "llm_prompts.log"
@@ -26,8 +30,9 @@ handler.setFormatter(formatter)
 # 将处理器添加到我们的日志记录器中
 logger.addHandler(handler)
 
-# --- 1. 新的LLM提供商配置 ---
-LLM_PROVIDER = "CLOUD"  # 在这里切换: "OLLAMA" 或 "CLOUD"
+# --- 1. 升级LLM提供商配置 ---
+# 在这里切换: "OLLAMA", "GOOGLE_GEMINI", 或 "DASHSCOPE"
+LLM_PROVIDER = "DASHSCOPE"
 
 # OLLAMA的配置
 OLLAMA_API_URL = "http://localhost:11434/api/chat"
@@ -36,17 +41,32 @@ OLLAMA_MODEL_NAME = "llama3:8b" # 或者您想用的其他本地模型
 # CLOUD (Gemini) 的配置
 CLOUD_LLM_MODEL_NAME = "gemini-1.5-flash-latest" # 性价比极高的最新模型
 
+# DASHSCOPE (通义千问) 的配置
+DASHSCOPE_MODEL_NAME = "qwen-max" # 这是通义千问最强大的模型之一
+
 # --- 2. 安全地配置云服务API密钥 ---
-if LLM_PROVIDER == "CLOUD":
+if LLM_PROVIDER == "GOOGLE_GEMINI":
     try:
+        # 这里的 os.getenv 会成功读取到由 load_dotenv() 加载进来的密钥
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("环境变量 GOOGLE_API_KEY 未设置！")
+            # 这条错误现在只会在 .env 文件丢失或内容错误时触发
+            raise ValueError("环境变量 GOOGLE_API_KEY 未在 .env 文件中设置！")
         genai.configure(api_key=api_key)
         print("--- [Bridge] Google Gemini API configured successfully. ---")
     except Exception as e:
         print(f"--- [Bridge] FATAL ERROR: Could not configure Gemini API: {e}", file=sys.stderr)
-        sys.exit(1) # 如果云服务配置失败，直接退出
+        sys.exit(1)
+elif LLM_PROVIDER == "DASHSCOPE":
+    try:
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            raise ValueError("环境变量 DASHSCOPE_API_KEY 未在 .env 文件中设置！")
+        dashscope.api_key = api_key
+        print("--- [Bridge] Alibaba Dashscope API configured successfully. ---")
+    except Exception as e:
+        print(f"--- [Bridge] FATAL ERROR: Could not configure Dashscope API: {e}", file=sys.stderr)
+        sys.exit(1)
 
 # --- 颜色常量定义 ---
 COLOR_AI_THINKING = "\033[96m"
@@ -79,7 +99,8 @@ REVERSE_ROSTER = {name.lower(): id for id, names in GENERAL_ROSTER.items() for n
 # “政委2.0”的上下文分析工具
 ACTION_KEYWORDS = ["switch to", "switching to", "deploy", "deploying", "change to", "use"]
 
-def query_llm_per_turn(user_prompt: str) -> dict:
+
+def query_ollama_llm_per_turn(user_prompt: str) -> dict:
     """“事无巨细”模式的查询函数"""
     global conversation_history
     conversation_history.append({"role": "user", "content": user_prompt})
@@ -121,6 +142,73 @@ def query_llm_per_turn(user_prompt: str) -> dict:
         logger.error(f"--- ERROR during LLM Per-Turn Query ---\nError: {e}")
         print(f"--- [Bridge] ERROR in Per-Turn Query: {e}", file=sys.stderr)
         return {"action_id": "0", "reasoning": "Error."}
+
+
+def query_cloud_llm_per_turn(user_prompt: str) -> dict:
+    """使用云端API（Dashscope/Gemini）进行“事无巨细”模式决策的查询函数"""
+    global conversation_history
+    conversation_history.append({"role": "user", "content": user_prompt})
+
+    print(f"\n{COLOR_AI_THINKING}--- [Bridge] Thinking with CLOUD context (Per-Turn Mode)...{COLOR_RESET}")
+
+    try:
+        if LLM_PROVIDER == "DASHSCOPE":
+            messages = conversation_history
+            # 通义千问的调用
+            response = dashscope.Generation.call(
+                model=DASHSCOPE_MODEL_NAME,
+                messages=messages,
+                result_format='json_object',
+                temperature=0.2
+            )
+            if response.status_code == 200:
+                llm_message_content = response.output.choices[0]['message']['content']
+            else:
+                raise Exception(f"Dashscope API Error: {response.message}")
+
+        elif LLM_PROVIDER == "GOOGLE_GEMINI":
+            # Gemini的调用 (注意，我们需要转换一下历史记录的格式)
+            gemini_history = []
+            for msg in conversation_history:
+                role = 'user' if msg['role'] == 'user' else 'model'
+                gemini_history.append({'role': role, 'parts': [msg['content']]})
+            
+            model = genai.GenerativeModel(CLOUD_LLM_MODEL_NAME)
+            generation_config = genai.types.GenerationConfig(response_mime_type="application/json", temperature=0.2)
+            response = model.generate_content(gemini_history, generation_config=generation_config, request_options={"timeout": 60})
+            llm_message_content = response.text
+
+        else: # 默认回到Ollama
+            # (这里可以省略，因为总调度会处理)
+            raise NotImplementedError("This cloud provider is not implemented for per-turn mode yet.")
+
+        # --- 通用的解析、日志、返回逻辑 ---
+        conversation_history.append({"role": "assistant", "content": llm_message_content})
+        
+        # ... (日志记录逻辑，可以从旧的 query_llm_per_turn 复制过来) ...
+        logger.info(f"--- LLM Response (Per-Turn) ---\nRaw: {llm_message_content}")
+
+        decision_json = json.loads(llm_message_content)
+        return {
+            "action_id": str(decision_json.get("action_id", "0")),
+            "reasoning": decision_json.get("reasoning", "No reasoning provided.")
+        }
+        
+    except Exception as e:
+        logger.error(f"--- ERROR in CLOUD Per-Turn Query ---\nError: {e}")
+        print(f"--- [Bridge] ERROR in CLOUD Per-Turn Query: {e}", file=sys.stderr)
+        return {"action_id": "0", "reasoning": "Error."}
+
+# 创建新的总调度函数
+def query_llm_per_turn(user_prompt: str) -> dict:
+    """“事无巨细”模式的总调度函数。"""
+    if LLM_PROVIDER == "OLLAMA":
+        return query_ollama_llm_per_turn(user_prompt)
+    elif LLM_PROVIDER in ["GOOGLE_GEMINI", "DASHSCOPE"]:
+        return query_cloud_llm_per_turn(user_prompt)
+    else:
+        print(f"--- [Bridge] ERROR: Invalid LLM_PROVIDER for Per-Turn mode.", file=sys.stderr)
+        return {"action_id": "0", "reasoning": "Configuration Error."}
 
 
 def query_cloud_llm_strategy(prompt: str) -> str:
@@ -232,17 +320,71 @@ def query_ollama_llm_strategy(prompt: str) -> str:
         return "0"
     
     
+def query_dashscope_llm_strategy(prompt: str) -> str:
+    """使用阿里云通义千问API进行战略决策的查询函数"""
+    global marshal_manual
+    print(f"\n{COLOR_AI_THINKING}--- [Bridge] Sending report to DASHSCOPE Grand Marshal (Qwen)...{COLOR_RESET}")
+    try:
+        # 通义千问的System Prompt和多轮对话格式
+        messages = [
+            {'role': 'system', 'content': marshal_manual},
+            {'role': 'user', 'content': prompt}
+        ]
+        
+        # 调用API，强制返回JSON格式
+        response = dashscope.Generation.call(
+            model=DASHSCOPE_MODEL_NAME,
+            messages=messages,
+            result_format='json_object', # 强制返回JSON对象
+            temperature=0.3
+        )
+
+        # 检查响应状态并解析
+        if response.status_code == 200:
+            llm_message_content = response.output.choices[0]['message']['content']
+            decision_json = json.loads(llm_message_content)
+            
+            parsed_general_id = str(decision_json.get("next_general_id", "0"))
+            reasoning = decision_json.get("reasoning", "No reasoning provided.")
+            
+            final_general_id = verify_and_correct_decision(parsed_general_id, reasoning)
+
+            # ... (打印和记录日志的代码，完全可以复用) ...
+            print(f"{COLOR_AI_DECISION}--- [Bridge] Qwen Marshal's Decision: General ID {final_general_id}{COLOR_RESET}")
+            print(f"{COLOR_AI_DECISION}--- [Bridge] Reasoning: {reasoning}{COLOR_RESET}")
+            
+            # ... (日志记录) ...
+            log_content_resp = (
+                f"--- LLM Response and Parsed Decision ---\n"
+                f"Raw Response: {llm_message_content}\n"
+                f"Parsed ID from JSON: {parsed_general_id}\n"
+                f"Final Corrected ID: {final_general_id}\n"
+                f"Parsed Reasoning: {reasoning}"
+            )
+            logger.info(log_content_resp)
+
+            return final_general_id
+        else:
+            # 处理API返回的错误
+            raise Exception(f"Dashscope API Error: Code {response.status_code}, Message: {response.message}")
+
+    except Exception as e:
+        # ... (异常处理和日志记录) ...
+        print(f"--- [Bridge] ERROR in DASHSCOPE Strategy Query: {e}", file=sys.stderr)
+        return "0"
+    
+    
 def query_llm_strategy(prompt: str) -> str:
-    """
-    战略决策的总调度函数。根据全局配置选择LLM提供商。
-    """
+    """战略决策的总调度函数。根据全局配置选择LLM提供商。"""
     if LLM_PROVIDER == "OLLAMA":
         return query_ollama_llm_strategy(prompt)
-    elif LLM_PROVIDER == "CLOUD":
+    elif LLM_PROVIDER == "GOOGLE_GEMINI":
         return query_cloud_llm_strategy(prompt)
+    elif LLM_PROVIDER == "DASHSCOPE":
+        return query_dashscope_llm_strategy(prompt) # <-- 新增的分支
     else:
         print(f"--- [Bridge] ERROR: Invalid LLM_PROVIDER '{LLM_PROVIDER}' configured.", file=sys.stderr)
-        return "0" # 返回一个安全的默认值
+        return "0"
 
 
 def verify_and_correct_decision(parsed_id: str, reasoning: str) -> str:
@@ -351,23 +493,28 @@ def main():
                     is_buffering_prompt = True
                     prompt_buffer = []
                 elif command == "INPUT_REQUIRED":
-                    if llm_mode == "PER_TURN":
-                        print(f"{COLOR_AI_THINKING}--- [Bridge] LLM (Per-Turn) is thinking...{COLOR_RESET}")
-                        user_input = input()
-                        game_process.stdin.write(user_input + "\n")
+                    # --- 逻辑简化：只要有后台任务，就提示 ---
+                    if llm_future:
+                        print(
+                            f"{COLOR_AI_THINKING}--- [Bridge] LLM is thinking in the background...{COLOR_RESET}"
+                        )
+                    
+                    user_input = input()
+                    game_process.stdin.write(user_input + "\n")
+                    game_process.stdin.flush()
+
+                    if llm_future:
+                        # --- 这部分代码是通用的，无需区分模式 ---
+                        print(
+                            f"{COLOR_AI_THINKING}--- [Bridge] Retrieving decision...{COLOR_RESET}"
+                        )
+                        decision = llm_future.result()
+                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Decided Action ID: {decision['action_id']}{COLOR_RESET}")
+                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Reasoning: {decision['reasoning']}{COLOR_RESET}")
+                        game_process.stdin.write(decision["action_id"] + "\n")
                         game_process.stdin.flush()
-                        if llm_future:
-                            print(f"{COLOR_AI_THINKING}--- [Bridge] Retrieving decision...{COLOR_RESET}")
-                            decision = llm_future.result()
-                            print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Decided Action ID: {decision['action_id']}{COLOR_RESET}")
-                            print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Reasoning: {decision['reasoning']}{COLOR_RESET}")
-                            game_process.stdin.write(decision["action_id"] + "\n")
-                            game_process.stdin.flush()
-                            llm_future = None
-                    else:
-                        user_input = input()
-                        game_process.stdin.write(user_input + "\n")
-                        game_process.stdin.flush()
+                        llm_future = None
+                        
                 continue
 
             if is_buffering_prompt:

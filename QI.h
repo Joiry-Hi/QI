@@ -19,14 +19,13 @@
 #include <conio.h>
 #define CLEAR_SCREEN() system("cls")
 #define NULL_DEVICE "NUL"
-#define GET_CHAR() _getch()
+#define GET_CHAR() getchar()
 #else
 #include <termios.h>
 #include <unistd.h>
 #define CLEAR_SCREEN() system("clear")
 #define NULL_DEVICE "/dev/null"
-int getch_linux();
-#define GET_CHAR() getch_linux()
+#define GET_CHAR() getchar()
 #endif
 
 #define TOTAL_ACTION_AMOUNT 10
@@ -36,7 +35,7 @@ int getch_linux();
 #define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
 
 // 中文开关
-//#define CHINESE_GAME_LOG
+#define CHINESE_GAME_LOG
 
 #ifdef CHINESE_GAME_LOG
 #define CHN_PRINT(...) printf(__VA_ARGS__)
@@ -51,9 +50,9 @@ int getch_linux();
 #endif
 
 // AI训练开关
-#define AI_TRAINING_SET
+//#define AI_TRAINING_SET
 
-#define INTERACTIVE_AI_MODE // 是否保持输出流
+#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -275,7 +274,7 @@ void Load_AI_Weights();
 void Save_AI_Weights();
 
 // 模式1: Per-Turn LLM (事无巨细)
-void Build_Genesis_Prompt();
+void Build_Per_Turn_Genesis_Prompt();
 void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent);
 void CPU_logic_LLM(Player *cpu, const Player *opponent);
 
