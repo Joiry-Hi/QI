@@ -616,6 +616,7 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
         // 模式7: 只发送 NEW_GAME_START，等待战略周期
         printf("##CMD##:NEW_GAME_START\n");
         fflush(stdout);
+        Build_Marshal_Genesis_Prompt();
         break;
     }
     // --- END REFACTOR ---
@@ -1839,6 +1840,9 @@ void Save_AI_Weights()
 // --- BLUEPRINT v2.0: Genesis Prompt ---
 void Build_Genesis_Prompt()
 {
+    printf("##CMD##:START_PROMPT\n");
+    fflush(stdout); // <-- 关键修复：立刻发送命令
+
     // --- 1. 角色与目标 (Role & Goal) ---
     printf("You are a master strategist in a mystical world of cultivation. Your goal is to win. ");
     printf("You are calm, calculating, and think step-by-step.\n");
@@ -1860,9 +1864,50 @@ void Build_Genesis_Prompt()
     fflush(stdout); // 极其重要！确保创世指令被立即发送
 }
 
-// 由 Build_LLM_Prompt 重命名而来
+void Build_Marshal_Genesis_Prompt()
+{
+    printf("##CMD##:START_PROMPT\n");
+    fflush(stdout); // <-- 关键修复：立刻发送命令
+
+    // === 核心世界观 (Core Worldview) ===
+    printf("You are the Grand Marshal, a master strategist in a world of cultivation. Your goal is not just to win this battle, but to do so efficiently and decisively.\n");
+    printf("Victory is achieved by depleting the opponent's HP to 0.\n");
+    printf("The most critical long-term strategy is **Breakthrough**: accumulating enough QI to reach the maximum for your current realm and advancing to the next. A higher realm grants immense advantages in HP, QI capacity, and attack power (YUAN).\n");
+    printf("Spiritual Roots grant passive bonuses: Heavenly aids breakthrough, Solid enhances HP/healing, Sharp boosts damage, Ethereal increases evasion.\n\n");
+
+    // === 兵法总纲 (Principles of War) ===
+    printf("== Grand Marshal's Principles of War ==\n");
+    printf("1.  **Analyze and Adapt**: Your primary role is to analyze the opponent's strategy over a 5-turn cycle and deploy the general best suited to counter them.\n");
+    printf("2.  **Resource Supremacy**: An advantage in QI is a strategic advantage. An opponent with high QI is a threat; an opponent low on QI is an opportunity.\n");
+    printf("3.  **Calculated Aggression**: Do not engage in reckless battles. Switch to an aggressive general only when you have a clear advantage or when it's necessary to disrupt a vulnerable opponent.\n");
+    printf("4.  **Preserve Strength**: In unfavorable situations, switch to a defensive general to minimize HP loss and buy time to accumulate resources for a counter-attack.\n\n");
+
+    // === 将领名册 (Roster of Generals) ===
+    printf("== Your Available Generals ==\n");
+    printf("You command six generals, each a master of a specific combat doctrine. You will deploy them by their ID.\n");
+    printf("- **[ID 0] V0_Random (The Fool)**: Unpredictable and chaotic. A desperate last resort or a tool to sow confusion. Use with extreme caution.\n");
+    printf("- **[ID 1] V1A_Disruptor (The Saboteur)**: Master of interference. Excels at interrupting enemy actions (like healing) and weakening them. Deploys against opponents who rely on specific combos or buffs.\n");
+    printf("- **[ID 2] V1B_Berserker (The Vanguard)**: A pure offensive force. Relentlessly attacks to overwhelm the enemy. Deploys when you have a clear HP/QI advantage or against a non-threatening, developing opponent.\n");
+    printf("- **[ID 3] V1C_Turtle (The Iron Wall)**: The ultimate defensive specialist. Prioritizes healing and defending to outlast any assault. Deploys against aggressive opponents or to safely accumulate QI.\n");
+    printf("- **[ID 4] V1D_Ascetic (The Monk)**: Single-mindedly focused on accumulating QI for a breakthrough. Ignores worldly conflict for ultimate power. Deploys when the opponent is passive and a realm advantage is the clearest path to victory.\n");
+    printf("- **[ID 5] V1E_Gambler (The Executioner)**: Saves all resources for a single, devastating blow. Deploys to break through heavy defenses or to perform a high-risk, high-reward finishing move.\n\n");
+
+    // === 任务指令 (Mission Command) ===
+    printf("After each 5-turn strategic cycle, you will receive a battlefield report. Your task is to analyze it, reference this manual, and issue a command in the specified JSON format: {\"next_general_id\": <id>, \"reasoning\": \"...\"}. Your reasoning should reflect your strategic understanding.\n");
+
+    printf("YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT AND NOTHING ELSE. This JSON object MUST contain two keys: 'next_general_id' (integer) and 'reasoning' (string).\n");
+    printf("EXAMPLE of a valid response: {\"next_general_id\": 3, \"reasoning\": \"The opponent is passive, so I will switch to the Ascetic to gain a resource advantage.\"}\n");
+
+    // === 结束信号 ===
+    printf("END_OF_PROMPT\n");
+    fflush(stdout);
+}
+
 void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent)
 {
+    printf("##CMD##:START_PROMPT\n");
+    fflush(stdout); // <-- 关键修复：立刻发送命令
+
     // --- 1. 描述当前战局 (Current State) ---
     printf("== Turn Update: Round %d ==\n", game.round_number);
     printf("Your Status: {HP: %d/%d, QI: %d/%d, Realm: %s}\n", cpu->HP, max_HP[cpu->XIUWEI], cpu->QI, max_QI[cpu->XIUWEI], Eng_Realm[cpu->XIUWEI]);
@@ -1924,6 +1969,9 @@ void CPU_logic_LLM(Player *cpu, const Player *opponent)
 
 void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, const Game *game)
 {
+    printf("##CMD##:START_PROMPT\n");
+    fflush(stdout); // <-- 关键修复：立刻发送命令
+
     // --- 1. 开场白 ---
     printf("Grand Marshal, this is the battlefield report for the last %d turns.\n", game->history_log_count);
 
@@ -1962,16 +2010,17 @@ void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, co
     // --- 4. 我方现状 ---
     printf("== Current Strategy Assessment ==\n");
     // 这里可以根据 g_skill_database 动态获取将军名字，为简化先硬编码
-    const char *general_names[] = {"Survivor", "Berserker", "Turtle", "Ascetic", "Quick Hand"};
+    const char *general_names[] = {"Disruptor", "Berserker", "Turtle", "Ascetic", "Gambler"};
     printf("We are currently executing strategy ID %d (%s).\n", game->current_general_id, general_names[game->current_general_id]);
 
     // --- 5. 可用将领列表 ---
     printf("== Available Generals for Deployment ==\n");
-    printf("[0: Survivor], [1: Berserker], [2: Turtle], [3: Ascetic], [4: Quick Hand]\n");
+    printf("[0: Disruptor], [1: Berserker], [2: Turtle], [3: Ascetic], [4: Gambler]\n");
 
     // --- 6. 核心问题 ---
     printf("Grand Marshal, what is your strategic order? Please respond in JSON format: {\"order\": \"<SWITCH|CONFIRM>\", \"general_id\": <id>, \"reasoning\": \"...\"}\n");
-
+    printf("REMINDER: Your response MUST be a JSON object containing the 'next_general_id' key and a 'reasoning' key.\n");
+    
     // --- 7. 结束信号 ---
     printf("END_OF_PROMPT\n");
     fflush(stdout);

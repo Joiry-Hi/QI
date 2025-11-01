@@ -36,7 +36,7 @@ int getch_linux();
 #define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
 
 // 中文开关
-// #define CHINESE_GAME_LOG
+#define CHINESE_GAME_LOG
 
 #ifdef CHINESE_GAME_LOG
 #define CHN_PRINT(...) printf(__VA_ARGS__)
@@ -280,6 +280,7 @@ void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent);
 void CPU_logic_LLM(Player *cpu, const Player *opponent);
 
 // 模式2: Grand Marshal (将帅分级)
+void Build_Marshal_Genesis_Prompt();
 void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, const Game *game);
 void Request_Strategic_Decision(Player *cpu, Player *opponent, Game *game);
 
