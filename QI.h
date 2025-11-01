@@ -2,7 +2,6 @@
 #define QI_H
 
 #pragma region definitions&macros
-#define _WIN32_WINNT 0x0A00
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
@@ -32,13 +31,12 @@ int getch_linux();
 
 #define TOTAL_ACTION_AMOUNT 10
 #define REALM_COUNT 10
-#define COST_LEVELS 7
 #define MAX_LOG_TURNS 100
-#define MAX_ROUNDS 500
+#define MAX_ROUNDS 500    // 每局最大回合数
 #define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
 
-//中文开关
-//#define CHINESE_GAME_LOG
+// 中文开关
+// #define CHINESE_GAME_LOG
 
 #ifdef CHINESE_GAME_LOG
 #define CHN_PRINT(...) printf(__VA_ARGS__)
@@ -52,10 +50,10 @@ int getch_linux();
 #define CHN(...)
 #endif
 
-//AI训练开关
+// AI训练开关
 #define AI_TRAINING_SET
 
-#define INTERACTIVE_AI_MODE //是否保持输出流
+#define INTERACTIVE_AI_MODE // 是否保持输出流
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -65,8 +63,8 @@ int getch_linux();
 #define HUMAN_PLAYING(...) __VA_ARGS__
 #endif
 
-//权重直接写入开关
-//#define WEIGHT_DIRECT_WRITE_ENABLE
+// 权重直接写入开关
+// #define WEIGHT_DIRECT_WRITE_ENABLE
 
 #ifdef WEIGHT_DIRECT_WRITE_ENABLE
 #define DIRECT_WRITE(code_block) code_block
@@ -74,8 +72,6 @@ int getch_linux();
 #define DIRECT_WRITE(code_block)
 #endif
 #pragma endregion definitions &macros
-
-// --- BLUEPRINT REFACTOR: Final Header Structure ---
 
 #pragma region Core_Data_Structures
 // 1. 先定义所有依赖的基础枚举 (Enums)
@@ -179,7 +175,8 @@ typedef struct Player_s
 } Player;
 
 // 为清晰起见，定义一个新的、简单的日志结构
-typedef struct {
+typedef struct
+{
     ActionID action_id;
 } TurnHistoryLog;
 
@@ -198,6 +195,7 @@ typedef struct
     int initial_hp, initial_qi, initial_xiuwei;
     float initial_evade;
     int train_reps, enemy_type;
+    int enable_ai_randomness;
 } GameConfig;
 
 // AI相关的数据结构也属于核心数据，应在此处定义
@@ -221,6 +219,7 @@ typedef struct
     int ai_hp, opponent_hp, ai_qi, opponent_qi, ai_xiuwei;
     int action_cost, damage_dealt, damage_taken;
 } AI_TurnLog;
+
 #pragma endregion Core_Data_Structures
 
 #pragma region Global_Variable_Declarations
@@ -267,8 +266,8 @@ void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent);
 void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent);
 void CPU_logic_V1D_Ascetic(Player *cpu, const Player *opponent);
 void CPU_logic_V1E_Gambler(Player *cpu, const Player *opponent);
-void CPU_logic_V2(Player *cpu, const Player *opponent);
-void CPU_logic_V2A(Player *cpu, const Player *opponent, int A);
+void CPU_logic_V2_Genius(Player *cpu, const Player *opponent);
+void CPU_logic_V2A_Tuned(Player *cpu, const Player *opponent, int A);
 
 // AI Learning System
 void AI_Learn_From_Game(int ai_won);

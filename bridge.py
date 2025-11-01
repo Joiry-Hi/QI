@@ -17,10 +17,10 @@ LLM_API_URL = "http://localhost:11434/api/chat"
 GAME_EXECUTABLE = "./QI"
 
 # 原来的配置:
-LLM_MODEL_NAME = "mistral"
+#LLM_MODEL_NAME = "mistral"
 
 # 更换为Llama 3 (推荐):
-# LLM_MODEL_NAME = "llama3:8b"
+LLM_MODEL_NAME = "llama3:8b"
 
 # 或者更换为Gemma:
 # LLM_MODEL_NAME = "gemma:7b"

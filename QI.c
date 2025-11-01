@@ -13,7 +13,8 @@ GameConfig g_config = {
     .initial_xiuwei = 0,
     .initial_evade = 0.05f,
     .train_reps = 1000,
-    .enemy_type = -1};
+    .enemy_type = -1,
+    .enable_ai_randomness = 1};
 
 char *Realm[10] = {"凡人", "炼气", "筑基", "结丹", "元婴", "化神", "炼虚", "合体", "大乘", "飞升"};
 char *Eng_Realm[10] = {"Mortal", "Qi Refining", "Foundation", "Core Formation", "Nascent Soul", "Spirit Severing", "Void Refinement", "Unity", "Great Ascension", "Ascension"};
@@ -74,6 +75,7 @@ static int player_wins = 0;
 // --- Blueprint: Data Manager ---
 // 静态技能数据库，定义了游戏中的所有技能规则
 Skill g_skill_database[TOTAL_ACTION_TYPES];
+
 #pragma endregion Global Variable Definitions
 
 // 一个用于初始化所有数据库的函数
@@ -333,7 +335,7 @@ int main()
             AI_TRAINING(
                 // 1. 让“YOU”这个角色使用5号AI的逻辑进行决策
                 // CPU_logic_V2A 的第一个参数是决策者，第二个是其对手
-                CPU_logic_V2A(&YOU, &CPU, 0);
+                CPU_logic_V2A_Tuned(&YOU, &CPU, 0);
 
                 // 2. 调用通用的行动宣告函数，来打印“YOU”的决策
                 CPU_action(&YOU);)
@@ -357,7 +359,7 @@ int main()
                 CPU_logic_V1E_Gambler(&CPU, &YOU);
                 break;
             case 5:
-                CPU_logic_V2A(&CPU, &YOU, 0);
+                CPU_logic_V2A_Tuned(&CPU, &YOU, 0);
                 break;
             case 6:
                 CPU_logic_LLM(&CPU, &YOU);
@@ -405,13 +407,13 @@ int main()
 
 // --- BLUEPRINT REFACTOR: Correct I/O Management ---
 #ifdef _WIN32
-        #ifndef INTERACTIVE_AI_MODE
+#ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("CONOUT$", "w", stdout));
-        #endif
+#endif
 #else
-        #ifndef INTERACTIVE_AI_MODE
+#ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("/dev/tty", "w", stdout));
-        #endif
+#endif
 #endif
         // --- END REFACTOR ---
 
@@ -1201,6 +1203,10 @@ void Load_Config()
             {
                 g_config.enemy_type = atoi(value);
             }
+            else if (strcmp(key, "AI_Randomness") == 0)
+            {
+                g_config.enable_ai_randomness = atoi(value);
+            }
         }
     }
 
@@ -1236,7 +1242,8 @@ void CPU_logic_V0_Random(Player *cpu, const Player *opponent)
 void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 {
     // 优先级1：打断关键行动
-    if (opponent->healing > 0 && can_perform_action(cpu, Melee)) {
+    if (opponent->healing > 0 && can_perform_action(cpu, Melee))
+    {
         cpu->current_action_id = Melee;
         return;
     }
@@ -1250,15 +1257,19 @@ void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
     */
 
     // 优先级3：削弱对手 (假设已有 Warcry 技能)
-    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, Boost)) {
+    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, Boost))
+    {
         cpu->current_action_id = Boost; // 在对手准备进攻时削弱他
         return;
     }
 
     // 如果没有可干扰的，就进行低成本骚扰或集气
-    if (can_perform_action(cpu, Melee)) {
+    if (can_perform_action(cpu, Melee))
+    {
         cpu->current_action_id = Melee;
-    } else {
+    }
+    else
+    {
         cpu->current_action_id = Gain_qi;
     }
 }
@@ -1268,32 +1279,39 @@ void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 // 决策优先级: 1.斩杀 -> 2.最高伤害 -> 3.为下一次攻击集气。
 void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent)
 {
-    // --- 斩杀判定 (Kill Shot Priority) ---
-    // 1. 检查最强的攻击能否斩杀
-    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK) {
+    // --- 斩杀判定 (依然是最高优先级，不受随机性影响) ---
+    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK)
+    {
         cpu->current_action_id = Smite;
         return;
     }
-    // 2. 检查较弱的攻击能否斩杀
-    if (can_perform_action(cpu, Melee) && opponent->HP <= g_skill_database[Melee].base_power * cpu->ATK) {
-        cpu->current_action_id = Melee;
-        return;
-    }
-    // (如果未来有更多攻击技能，按威力从高到低在此处添加斩杀判定)
-
-    // --- 最大伤害输出 (Max Damage Priority) ---
-    // 如果不能斩杀，就打出当前能用的最高伤害技能
-    if (can_perform_action(cpu, Smite)) {
-        cpu->current_action_id = Smite;
-        return;
-    }
-    if (can_perform_action(cpu, Melee)) {
+    if (can_perform_action(cpu, Melee) && opponent->HP <= g_skill_database[Melee].base_power * cpu->ATK)
+    {
         cpu->current_action_id = Melee;
         return;
     }
 
-    // --- 准备阶段 (Preparation Priority) ---
-    // 如果连最基础的攻击都无法发动，则必定集气，为下一次进攻做准备。
+    // --- 随机决策门：是强化自己还是直接攻击？ ---
+    // 有25%的几率，狂战士会选择强化自己而不是直接攻击
+    if (g_config.enable_ai_randomness == 1 && can_perform_action(cpu, Boost) && (rand() % 100 < 25))
+    {
+        cpu->current_action_id = Boost;
+        return;
+    }
+
+    // --- 默认进攻逻辑 (75%的几率会走到这里) ---
+    if (can_perform_action(cpu, Smite))
+    {
+        cpu->current_action_id = Smite;
+        return;
+    }
+    if (can_perform_action(cpu, Melee))
+    {
+        cpu->current_action_id = Melee;
+        return;
+    }
+
+    // --- 准备阶段 ---
     cpu->current_action_id = Gain_qi;
 }
 
@@ -1302,32 +1320,40 @@ void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent)
 // 决策优先级: 1.紧急治疗 -> 2.预判性防御 -> 3.为防御和治疗集气。
 void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent)
 {
-    // --- 生存判定 (Survival Priority) ---
-    // 1. 如果血量低于80%，且能够治疗，则必定治疗。
-    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.8f && can_perform_action(cpu, Heal)) {
+    // --- 生存判定 (最高优先级) ---
+    if (cpu->HP < max_HP[cpu->XIUWEI] * 0.8f && can_perform_action(cpu, Heal))
+    {
         cpu->current_action_id = Heal;
         return;
     }
 
-    // --- 威胁规避 (Threat Evasion Priority) ---
-    // 1. 如果对手QI很高(预示着强力攻击)，且能够防御，则优先防御。
-    if (opponent->QI >= 4 && can_perform_action(cpu, Defend)) {
+    // --- 随机决策门：是稳妥防御还是抓住机会偷袭？ ---
+    // (需要预知对手行动，若无法预知，可改为判断对手QI)
+    // 假设对手正在集气，有30%的几率，神龟会放弃防御进行一次骚扰攻击
+    if (g_config.enable_ai_randomness == 1 && opponent->QI < 2 && can_perform_action(cpu, Melee) && (rand() % 100 < 30))
+    {
+        cpu->current_action_id = Melee;
+        return;
+    }
+
+    // --- 默认防御逻辑 (70%的几率会走到这里) ---
+    if (opponent->QI >= 4 && can_perform_action(cpu, Defend))
+    {
         cpu->current_action_id = Defend;
         return;
     }
-    // 2. 如果对手处于激怒状态，也进行防御。
-    if (opponent->enraged > 0 && can_perform_action(cpu, Defend)) {
+    if (opponent->enraged > 0 && can_perform_action(cpu, Defend))
+    {
         cpu->current_action_id = Defend;
         return;
     }
-    // 3. 格挡也是一种有效的防御手段。
-    if (can_perform_action(cpu, Parry)) {
+    if (can_perform_action(cpu, Parry))
+    {
         cpu->current_action_id = Parry;
         return;
     }
 
-    // --- 准备阶段 (Preparation Priority) ---
-    // 如果自身状态良好且敌人威胁不大，则集气，为未来的防御和治疗做准备。
+    // --- 准备阶段 ---
     cpu->current_action_id = Gain_qi;
 }
 
@@ -1336,20 +1362,28 @@ void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent)
 // 决策优先级: 1.能赢吗？ -> 2.集气！
 void CPU_logic_V1D_Ascetic(Player *cpu, const Player *opponent)
 {
-    // --- 胜利判定 (Win Condition Priority) ---
-    // 苦修者不是傻子，如果能一击结束战斗，它会毫不犹豫地出手。
-    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK) {
+    // --- 胜利判定 (最高优先级) ---
+    if (can_perform_action(cpu, Smite) && opponent->HP <= g_skill_database[Smite].base_power * cpu->ATK)
+    {
         cpu->current_action_id = Smite;
         return;
     }
-    if (can_perform_action(cpu, Melee) && opponent->HP <= g_skill_database[Melee].base_power * cpu->ATK) {
-        cpu->current_action_id = Melee;
-        return;
+
+    // --- 随机决策门：是继续修炼还是保命？ ---
+    // 只有在HP低于25%的极端情况下，才有可能触发求生欲
+    if (g_config.enable_ai_randomness == 1 && cpu->HP < max_HP[cpu->XIUWEI] * 0.25f && can_perform_action(cpu, Heal))
+    {
+        // 血量越低，求生欲越强，治疗的概率越大
+        // 例如，20%血量时，有 (25-20)*5 = 25% 的概率治疗
+        int heal_chance = (int)((max_HP[cpu->XIUWEI] * 0.25f - cpu->HP) * 5.0f);
+        if (rand() % 100 < heal_chance)
+        {
+            cpu->current_action_id = Heal;
+            return;
+        }
     }
 
-    // --- 唯一信条：集气 (The One True Path) ---
-    // 只要不能立刻获胜，无论自身血量多低，无论敌人状态如何，它都只会做一件事：集气。
-    // 这是它通往更高境界的唯一道路。
+    // --- 默认修炼逻辑 ---
     cpu->current_action_id = Gain_qi;
 }
 
@@ -1359,14 +1393,18 @@ void CPU_logic_V1E_Gambler(Player *cpu, const Player *opponent)
 {
     // 寻找当前可用的、威力最大的攻击技能
     ActionID best_attack = None;
-    if (can_perform_action(cpu, Terminate)) {
+    if (can_perform_action(cpu, Terminate))
+    {
         best_attack = Terminate;
-    } else if (can_perform_action(cpu, Smite)) {
+    }
+    else if (can_perform_action(cpu, Smite))
+    {
         best_attack = Smite;
     } // ...可以扩展更多高威力技能
 
     // 如果能发动最强攻击，则不惜一切代价发动
-    if (best_attack != None) {
+    if (best_attack != None)
+    {
         cpu->current_action_id = best_attack;
         return;
     }
@@ -1578,7 +1616,7 @@ float EvaluateAction(ActionID action_id, const Player *cpu, const Player *oppone
 }
 
 // V2: 基于评分系统的智能AI
-void CPU_logic_V2(Player *cpu, const Player *opponent)
+void CPU_logic_V2_Genius(Player *cpu, const Player *opponent)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
@@ -1607,7 +1645,7 @@ void CPU_logic_V2(Player *cpu, const Player *opponent)
 }
 
 // 加载另一套权重
-void CPU_logic_V2A(Player *cpu, const Player *opponent, int A)
+void CPU_logic_V2A_Tuned(Player *cpu, const Player *opponent, int A)
 {
     ActionID affordable_actions[TOTAL_ACTION_TYPES];
     int affordable_count = get_affordable_actions(cpu, affordable_actions);
