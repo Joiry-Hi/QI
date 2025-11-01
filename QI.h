@@ -50,7 +50,7 @@
 #endif
 
 // AI训练开关
-//#define AI_TRAINING_SET
+#define AI_TRAINING_SET
 
 #define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 

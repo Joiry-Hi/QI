@@ -4,6 +4,7 @@ import datetime
 import subprocess
 import requests
 import sys
+import functools
 from concurrent.futures import ThreadPoolExecutor
 import logging # <-- 新增导入
 from logging.handlers import RotatingFileHandler # <-- 新增导入
@@ -387,6 +388,31 @@ def query_llm_strategy(prompt: str) -> str:
         return "0"
 
 
+def send_llm_result_to_c(future, game_process):
+    """
+    这是一个“回调”函数。当后台的LLM请求完成后，它会被自动调用。
+    它的职责是获取结果，并将其安全地发送回C程序。
+    """
+    try:
+        # .result()在这里调用是安全的，因为future已经完成了
+        decision = future.result()
+        
+        # 打印决策（这部分代码从main函数移动到这里）
+        print(f"\n{COLOR_AI_DECISION}--- [Bridge] LLM Decided Action ID: {decision['action_id']}{COLOR_RESET}")
+        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Reasoning: {decision['reasoning']}{COLOR_RESET}")
+        
+        # 通过指定的game_process，将结果发送给C
+        game_process.stdin.write(decision["action_id"] + "\n")
+        game_process.stdin.flush()
+
+    except Exception as e:
+        # 在回调函数中也必须有健壮的错误处理
+        print(f"--- [Bridge] ERROR in LLM callback: {e}", file=sys.stderr)
+        # 即使出错，也要给C一个答复，防止C无限等待
+        game_process.stdin.write("0\n")
+        game_process.stdin.flush()
+
+
 def verify_and_correct_decision(parsed_id: str, reasoning: str) -> str:
     """
     “政委 3.0”审查函数：通过行动关键词和否定词检测，实现更精准的意图识别。
@@ -462,7 +488,6 @@ def verify_and_correct_decision(parsed_id: str, reasoning: str) -> str:
 
 
 def main():
-    # ... (main函数保持不变) ...
     global llm_mode, conversation_history, marshal_manual
     print(f"--- [Bridge] Starting game process: {GAME_EXECUTABLE} ---")
 
@@ -473,7 +498,7 @@ def main():
 
     prompt_buffer = []
     is_buffering_prompt = False
-    llm_future = None
+    
     command_prefix = "##CMD##:"
     prompt_end_trigger = "END_OF_PROMPT"
 
@@ -482,59 +507,66 @@ def main():
             line = game_process.stdout.readline()
             if not line: break
 
+            # --- 命令处理器 ---
             if line.startswith(command_prefix):
                 command = line.strip().split(":", 1)[1]
-                if command == "NEW_GAME_START":
-                    print("\n--- [Bridge] New game detected. Awaiting AI mode confirmation... ---")
+
+                if command.startswith("NEW_GAME_START"):
+                    print(f"\n--- [Bridge] New game detected ({command}). Resetting state. ---")
                     llm_mode, marshal_manual, conversation_history = None, None, []
-                    if llm_future: llm_future.cancel()
-                    llm_future = None
+                    is_buffering_prompt = False
+                    # 注意：我们不再需要llm_future，因为回调是自管理的
+
                 elif command == "START_PROMPT":
                     is_buffering_prompt = True
                     prompt_buffer = []
+
                 elif command == "INPUT_REQUIRED":
-                    # --- 逻辑简化：只要有后台任务，就提示 ---
-                    if llm_future:
-                        print(
-                            f"{COLOR_AI_THINKING}--- [Bridge] LLM is thinking in the background...{COLOR_RESET}"
-                        )
-                    
+                    # 在人类模式下，流程是串行的，所以我们仍然在这里等待
                     user_input = input()
                     game_process.stdin.write(user_input + "\n")
                     game_process.stdin.flush()
+                    
+                    # 人类模式下的LLM决策是后续发生的，所以这里不需要回调
+                    # C程序会再次请求，或者我们可以在这里触发一个同步的LLM调用
+                    # 为简化，我们假设人类模式的LLM决策会在另一个流程中触发
+                
+                elif command == "GET_LLM_RESULT_FOR_AI_TURN":
+                     # 在AI模式下，这个命令现在只是一个“路标”
+                     # 我们不再需要在这里做任何事，因为回调会自动处理
+                     print(f"{COLOR_AI_THINKING}--- [Bridge] V2 AI has moved. Awaiting LLM decision from background...{COLOR_RESET}")
 
-                    if llm_future:
-                        # --- 这部分代码是通用的，无需区分模式 ---
-                        print(
-                            f"{COLOR_AI_THINKING}--- [Bridge] Retrieving decision...{COLOR_RESET}"
-                        )
-                        decision = llm_future.result()
-                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Decided Action ID: {decision['action_id']}{COLOR_RESET}")
-                        print(f"{COLOR_AI_DECISION}--- [Bridge] LLM Reasoning: {decision['reasoning']}{COLOR_RESET}")
-                        game_process.stdin.write(decision["action_id"] + "\n")
-                        game_process.stdin.flush()
-                        llm_future = None
-                        
                 continue
 
+            # --- Prompt 缓冲与任务提交 ---
             if is_buffering_prompt:
                 prompt_buffer.append(line)
+                
                 if prompt_end_trigger in line:
                     full_prompt = "".join(prompt_buffer)
                     is_buffering_prompt = False
+
                     if llm_mode is None:
                         if "Grand Marshal's Principles of War" in full_prompt:
                             llm_mode = "MARSHAL"
                             marshal_manual = full_prompt
-                            print(f"--- [Bridge] AI Mode: {llm_mode} (Manual Stored). Game starts. ---")
+                            print(f"--- [Bridge] AI Mode: {llm_mode} (Manual Stored).")
                         elif "You are a master strategist" in full_prompt:
                             llm_mode = "PER_TURN"
-                            print(f"--- [Bridge] AI Mode: {llm_mode}. Game starts. ---")
+                            print(f"--- [Bridge] AI Mode: {llm_mode}.")
                             conversation_history.append({"role": "user", "content": full_prompt})
+                    
                     elif llm_mode == "PER_TURN":
-                        if "== Turn Update" in full_prompt:
-                            llm_future = executor.submit(query_llm_per_turn, full_prompt)
+                        # a. 提交后台任务
+                        future = executor.submit(query_llm_per_turn, full_prompt)
+                        # b. 为这个任务“注册”回调函数
+                        #    当future完成后，`send_llm_result_to_c`会被自动调用
+                        from functools import partial
+                        callback = partial(send_llm_result_to_c, game_process=game_process)
+                        future.add_done_callback(callback)
+                    
                     elif llm_mode == "MARSHAL":
+                        # 将帅模式是同步的，所以逻辑不变
                         new_general_id = query_llm_strategy(full_prompt)
                         game_process.stdin.write(new_general_id + "\n")
                         game_process.stdin.flush()
@@ -542,7 +574,6 @@ def main():
                 print(line, end="")
 
         except (BrokenPipeError, KeyboardInterrupt):
-            print("\n--- [Bridge] Process interrupted. Shutting down. ---")
             break
         except Exception as e:
             print(f"\n--- [Bridge] An unexpected error occurred: {e} ---", file=sys.stderr)
@@ -551,6 +582,7 @@ def main():
     executor.shutdown()
     game_process.terminate()
     print("--- [Bridge] Game process terminated. ---")
+
 
 if __name__ == "__main__":
     main()

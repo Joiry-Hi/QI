@@ -341,13 +341,14 @@ int main()
             HUMAN_PLAYING(Player_action(game, &YOU));
 
             AI_TRAINING(
-                // 1. 让“YOU”这个角色使用5号AI的逻辑进行决策
-                // CPU_logic_V2A 的第一个参数是决策者，第二个是其对手
                 CPU_logic_V2A_Tuned(&YOU, &CPU, 0);
-
-                // 2. 调用通用的行动宣告函数，来打印“YOU”的决策
                 CPU_action(&YOU);
+                fflush(stdout); // 确保V2 AI的行动结果被立即发送
 
+                if (game.opponent_type == 6) { // 仅在对手是“事无巨细”LLM时
+                    printf("##CMD##:GET_LLM_RESULT_FOR_AI_TURN\n");
+                    fflush(stdout);
+                }
             )
 
             printf("\033[91m");
@@ -1848,6 +1849,7 @@ void Save_AI_Weights()
 void Build_Per_Turn_Genesis_Prompt()
 {
     printf("##CMD##:START_PROMPT\n");
+    fflush(stdout);
     // 这是一个更简洁、更API友好的开场白
     printf("You are a master strategist in a turn-based cultivation game. Your goal is to defeat your opponent by reducing their HP to zero.\n");
     printf("For every turn, you will receive a status update and a list of available actions with their IDs.\n");
