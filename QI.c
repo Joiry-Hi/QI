@@ -252,7 +252,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
 }
 
 // --- Main Game Loop and Other Functions (with fixes) ---
-int main()
+int main(int argc, char *argv[])
 {
 // 激活Windows控制台的虚拟终端处理功能
 // --- 【核心修改】使用条件编译进行平台适配 ---
@@ -274,6 +274,15 @@ int main()
         }
     }
 #endif
+
+    // 默认是独立模式
+    game.is_bridge_mode = 0;
+    // 检查命令行参数
+    if (argc > 1 && strcmp(argv[1], "--bridge") == 0)
+    {
+        // 如果程序的第一个参数是 "--bridge"，则切换到桥接模式
+        game.is_bridge_mode = 1;
+    }
 
     Load_Config();
     Initialize_Databases();
@@ -325,11 +334,11 @@ int main()
 
             // 新的、更具兼容性的代码:
             // 只要是需要LLM思考的模式（6号或7号的特定周期），就提前生成Prompt
-            if (game.opponent_type == 6)
+            if (game.opponent_type == 6 && game.is_bridge_mode)
             { // “事无巨细”模式，每回合都提前生成
                 Build_Turn_Update_Prompt(&CPU, &YOU);
             }
-            else if (game.opponent_type == 7 && game.round_number > 0 && game.round_number % STRATEGIC_CYCLE == 0) // “将帅分级”模式，在战略周期生成
+            else if (game.opponent_type == 7 && game.is_bridge_mode && (game.round_number % STRATEGIC_CYCLE == 0)) // “将帅分级”模式，在战略周期生成
             {
                 // a. 请求大元帅（LLM）进行战略决策
                 Request_Strategic_Decision(&CPU, &YOU, &game);
@@ -345,11 +354,10 @@ int main()
                 CPU_action(&YOU);
                 fflush(stdout); // 确保V2 AI的行动结果被立即发送
 
-                if (game.opponent_type == 6) { // 仅在对手是“事无巨细”LLM时
+                if (game.is_bridge_mode && game.opponent_type == 6) {
                     printf("##CMD##:GET_LLM_RESULT_FOR_AI_TURN\n");
                     fflush(stdout);
-                }
-            )
+                })
 
             printf("\033[91m");
             switch (game.opponent_type)
@@ -446,8 +454,10 @@ int main()
         // 只在人类对战模式下，执行等待逻辑
         HUMAN_PLAYING(
             // 1. 发送一个明确的信号，告诉Python现在轮到人类输入了
-            printf("##CMD##:INPUT_REQUIRED\n");
-            fflush(stdout);
+            if (game.is_bridge_mode) {
+                printf("##CMD##:INPUT_REQUIRED\n");
+                fflush(stdout);
+            }
 
             // 2. 调用 getchar() 来等待Python端发送过来的任何字符
             // Python端的 input() 会等待用户按回车，然后将整行发过来
@@ -617,16 +627,22 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     case 6: // “事无巨细”模式
         CHN(CPU->name = "悟道者");
         ENG(CPU->name = "Enlightened One");
-        printf("##CMD##:NEW_GAME_START_PER_TURN\n"); // <-- 新的、专用的信号
-        fflush(stdout);
-        Build_Per_Turn_Genesis_Prompt(); // <-- 调用新的开场白函数
+        if (game->is_bridge_mode)
+        {
+            printf("##CMD##:NEW_GAME_START_PER_TURN\n"); // <-- 新的、专用的信号
+            fflush(stdout);
+            Build_Per_Turn_Genesis_Prompt(); // <-- 调用新的开场白函数
+        }
         break;
     case 7: // “将帅分级”模式
         CHN(CPU->name = "大元帅");
         ENG(CPU->name = "Grand Marshal");
-        printf("##CMD##:NEW_GAME_START_MARSHAL\n"); // <-- 为将帅模式也创建一个专用信号
-        fflush(stdout);
-        Build_Marshal_Genesis_Prompt();
+        if (game->is_bridge_mode)
+        {
+            printf("##CMD##:NEW_GAME_START_MARSHAL\n"); // <-- 为将帅模式也创建一个专用信号
+            fflush(stdout);
+            Build_Marshal_Genesis_Prompt();
+        }
         break;
     }
     // --- END REFACTOR ---
@@ -899,8 +915,11 @@ void Player_action(Game game, Player *YOU)
         printf("\n");
 
         // a. 发送“取回结果”信号
-        printf("##CMD##:INPUT_REQUIRED\n");
-        fflush(stdout);
+        if (game.is_bridge_mode)
+        {
+            printf("##CMD##:INPUT_REQUIRED\n");
+            fflush(stdout);
+        }
 
         // --- BLUEPRINT REFACTOR: Robust IPC Input ---
         char buffer[16];   // 一个小缓冲区来接收输入行
@@ -1848,8 +1867,11 @@ void Save_AI_Weights()
 // --- BLUEPRINT v2.0: Genesis Prompt ---
 void Build_Per_Turn_Genesis_Prompt()
 {
-    printf("##CMD##:START_PROMPT\n");
-    fflush(stdout);
+    if (game.is_bridge_mode)
+    {
+        printf("##CMD##:START_PROMPT\n");
+        fflush(stdout);
+    }
     // 这是一个更简洁、更API友好的开场白
     printf("You are a master strategist in a turn-based cultivation game. Your goal is to defeat your opponent by reducing their HP to zero.\n");
     printf("For every turn, you will receive a status update and a list of available actions with their IDs.\n");
@@ -1861,8 +1883,11 @@ void Build_Per_Turn_Genesis_Prompt()
 
 void Build_Marshal_Genesis_Prompt()
 {
-    printf("##CMD##:START_PROMPT\n");
-    fflush(stdout); // <-- 关键修复：立刻发送命令
+    if (game.is_bridge_mode)
+    {
+        printf("##CMD##:START_PROMPT\n");
+        fflush(stdout); // <-- 关键修复：立刻发送命令
+    }
 
     // === 核心世界观 (Core Worldview) ===
     printf("You are the Grand Marshal, a master strategist in a world of cultivation. Your goal is not just to win this battle, but to do so efficiently and decisively.\n");
@@ -1900,8 +1925,11 @@ void Build_Marshal_Genesis_Prompt()
 
 void Build_Turn_Update_Prompt(const Player *cpu, const Player *opponent)
 {
-    printf("##CMD##:START_PROMPT\n");
-    fflush(stdout); // <-- 关键修复：立刻发送命令
+    if (game.is_bridge_mode)
+    {
+        printf("##CMD##:START_PROMPT\n");
+        fflush(stdout); // <-- 关键修复：立刻发送命令
+    }
 
     // --- 1. 描述当前战局 (Current State) ---
     printf("== Turn Update: Round %d ==\n", game.round_number);
@@ -1964,8 +1992,11 @@ void CPU_logic_LLM(Player *cpu, const Player *opponent)
 
 void Build_Strategic_Report_Prompt(const Player *cpu, const Player *opponent, const Game *game)
 {
-    printf("##CMD##:START_PROMPT\n");
-    fflush(stdout); // <-- 关键修复：立刻发送命令
+    if (game->is_bridge_mode)
+    {
+        printf("##CMD##:START_PROMPT\n");
+        fflush(stdout); // <-- 关键修复：立刻发送命令
+    }
 
     // --- 1. 开场白 ---
     printf("Grand Marshal, this is the battlefield report for the last %d turns.\n", game->history_log_count);

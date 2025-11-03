@@ -492,8 +492,13 @@ def main():
     print(f"--- [Bridge] Starting game process: {GAME_EXECUTABLE} ---")
 
     game_process = subprocess.Popen(
-        GAME_EXECUTABLE, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1
+        [GAME_EXECUTABLE, "--bridge"], # <-- 将命令变成一个列表，并添加参数
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        bufsize=1,
     )
 
     prompt_buffer = []
