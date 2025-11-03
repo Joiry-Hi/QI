@@ -50,7 +50,7 @@
 #endif
 
 // AI训练开关
-#define AI_TRAINING_SET
+// #define AI_TRAINING_SET
 
 #define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
@@ -88,6 +88,7 @@ typedef enum
     TYPE_SMASH,
     TYPE_PIERCE,
     TYPE_BURST,
+    TYPE_BLAST,
     TYPE_SHIELD,
     TYPE_PARRY,
     TYPE_HEAL,
@@ -107,21 +108,47 @@ typedef enum
     ATTR_DARK
 } AttributeID;
 
-typedef enum
-{
-    Gain_qi = 0,
-    Melee,
-    Defend,
-    Heal,
-    Boost,
-    Parry,
-    Smite,
-    Ranged,
-    Burst,
-    Terminate,
-    TOTAL_ACTION_TYPES,
-    None = -1
-} ActionID;
+
+// --- BLUEPRINT REFACTOR: Clarify Naming ---
+// ActionType: 技能的“宏观战斗类别”。决定了它在逻辑上属于哪一“族”的行为。
+// 玩家的技能槽位、AI的决策目标，都基于这个类型。
+typedef enum {
+    ACTION_TYPE_GAIN_QI,
+    ACTION_TYPE_MELEE,
+    ACTION_TYPE_DEFEND,
+    ACTION_TYPE_HEAL,
+    ACTION_TYPE_BOOST,
+    ACTION_TYPE_PARRY,
+    ACTION_TYPE_SMITE,
+    ACTION_TYPE_RANGED,
+    ACTION_TYPE_BURST,
+    ACTION_TYPE_TERMINATE,
+    TOTAL_ACTION_TYPES, // 宏观类别的总数
+    ACTION_TYPE_NONE = -1
+} ActionType;
+
+// SkillID: 技能数据在数据库中的“唯一标识符”。
+// 每个新技能（包括升级版）都应该有一个独一无二的SkillID。
+typedef enum {
+    SKILL_ID_NONE = -1,
+    // 凡人
+    SKILL_ID_GAIN_QI = 0,
+    SKILL_ID_MELEE,
+    SKILL_ID_DEFEND,
+    SKILL_ID_HEAL,
+    SKILL_ID_BOOST_WARCRY,
+    SKILL_ID_PARRY,
+    SKILL_ID_SMITE_BASIC,
+    // 炼气
+    SKILL_ID_RANGED_FIREBALL,
+    SKILL_ID_BURST_WINDBLADE,
+    // 筑基
+    SKILL_ID_RANGED_FLAMEBLAST,
+    SKILL_ID_SMITE_GREATSWORD, // 这是“巨剑术”的唯一ID
+    SKILL_ID_TERMINATE_THUNDER,
+    // ... 未来所有新技能都在此添加唯一ID
+    TOTAL_SKILLS // 技能数据总数
+} SkillID;
 
 typedef enum
 {
@@ -145,17 +172,17 @@ typedef enum
 } FateID;
 
 // 2. 接着定义所有核心数据结构体 (Structs)
-typedef struct Skill_s
-{
-    ActionID skill_id;
-    const char *name_chn;
-    const char *name_eng;
-    char hotkey;
-    int cost;
-    int rank;
-    TypeID type_id;
-    AttributeID attribute_id;
-    float base_power;
+typedef struct Skill_s {
+    SkillID       skill_id;      // 技能的唯一ID
+    ActionType    action_type;   // 技能的宏观类别
+    const char*   name_chn;
+    const char*   name_eng;
+    char          hotkey;
+    int           cost;
+    int           rank;          // 技能阶级
+    TypeID        type_id;       // 微观物理/效果分类
+    AttributeID   attribute_id;  // 元素属性
+    float         base_power;
     int effect_duration;
     float effect_chance;
     TargetType target_type;
@@ -165,8 +192,8 @@ typedef struct Player_s
 {
     char *name;
     int HP, QI, ATK, YUAN, XIUWEI;
-    int current_action_id;
-    Skill learned_skills[TOTAL_ACTION_TYPES];
+    ActionType current_action_type; // 玩家本回合的“意图”是哪个宏观类别
+    Skill      learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
     int gain_combo, burst_count, healing, enraged;
     float evade;
     SpiritualRootID root;
@@ -176,7 +203,7 @@ typedef struct Player_s
 // 为清晰起见，定义一个新的、简单的日志结构
 typedef struct
 {
-    ActionID action_id;
+    ActionType action_type;
 } TurnHistoryLog;
 
 typedef struct Game_s
@@ -187,6 +214,7 @@ typedef struct Game_s
     int current_general_id;
     TurnHistoryLog player_turn_history[STRATEGIC_CYCLE];
     int history_log_count;
+    int is_bridge_mode; // 1 表示桥接模式，0 表示独立模式
 } Game;
 
 typedef struct
@@ -200,7 +228,7 @@ typedef struct
 // AI相关的数据结构也属于核心数据，应在此处定义
 typedef struct
 {
-    ActionID action_id;
+    ActionType action_type;
     float score;
 } ActionScore;
 
@@ -214,7 +242,7 @@ typedef struct
 typedef struct
 {
     int round_number;
-    ActionID chosen_action, opponent_action;
+    ActionType chosen_action, opponent_action;
     int ai_hp, opponent_hp, ai_qi, opponent_qi, ai_xiuwei;
     int action_cost, damage_dealt, damage_taken;
 } AI_TurnLog;
@@ -257,8 +285,8 @@ void Oneway_Solution(Player *attacker, Player *defender);
 int InterruptHealing(const Player *attacker, Player *target);
 
 // AI Decision System
-int get_affordable_actions(const Player *player, ActionID affordable_actions[]);
-float EvaluateAction(ActionID action_id, const Player *cpu, const Player *opponent, const AI_Weights *weights);
+int get_affordable_actions(const Player *player, ActionType affordable_actions[]);
+float EvaluateAction(ActionType action_type, const Player *cpu, const Player *opponent, const AI_Weights *weights);
 void CPU_logic_V0_Random(Player *cpu, const Player *opponent);
 void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent);
 void CPU_logic_V1B_Berserker(Player *cpu, const Player *opponent);
