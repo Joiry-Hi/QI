@@ -84,15 +84,16 @@ typedef enum
 typedef enum
 {
     TYPE_NONE,
-    TYPE_SLASH,
-    TYPE_SMASH,
-    TYPE_PIERCE,
-    TYPE_BURST,
-    TYPE_BLAST,
-    TYPE_SHIELD,
-    TYPE_PARRY,
-    TYPE_HEAL,
-    TYPE_BUFF,
+    TYPE_SLASH,     //劈砍
+    TYPE_SMASH,     //重锤
+    TYPE_PIERCE,    //穿刺
+    TYPE_BURST,     //爆发
+    TYPE_BLAST,     //爆破
+    TYPE_SHIELD,    //护盾
+    TYPE_FORCEFIELD,//力场 
+    TYPE_PARRY,     //招架
+    TYPE_HEAL,      //疗愈
+    TYPE_BUFF,      
     TYPE_DEBUFF
 } TypeID;
 
@@ -105,7 +106,8 @@ typedef enum
     ATTR_THUNDER,
     ATTR_EARTH,
     ATTR_LIGHT,
-    ATTR_DARK
+    ATTR_DARK,
+    ATTR_SPIRITUAL
 } AttributeID;
 
 
@@ -141,10 +143,13 @@ typedef enum {
     SKILL_ID_SMITE_BASIC,
     // 炼气
     SKILL_ID_RANGED_FIREBALL,
+    SKILL_ID_ENERGY_SHIELD,
     SKILL_ID_BURST_WINDBLADE,
     // 筑基
     SKILL_ID_RANGED_FLAMEBLAST,
-    SKILL_ID_SMITE_GREATSWORD, // 这是“巨剑术”的唯一ID
+    SKILL_ID_GOLD_LIGHT_WARDING,
+    SKILL_ID_SMITE_GREATSWORD,
+    SKILL_ID_COMMANDING_SWORDS,
     SKILL_ID_TERMINATE_THUNDER,
     // ... 未来所有新技能都在此添加唯一ID
     TOTAL_SKILLS // 技能数据总数

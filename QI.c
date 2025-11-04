@@ -96,23 +96,16 @@ void Initialize_Databases()
     g_skill_database[SKILL_ID_BOOST_WARCRY] = (Skill){SKILL_ID_BOOST_WARCRY, ACTION_TYPE_BOOST, "战吼", "Warcry", 'C', 2, 0, TYPE_DEBUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_ENEMY};
     g_skill_database[SKILL_ID_PARRY] = (Skill){SKILL_ID_PARRY, ACTION_TYPE_PARRY, "格挡", "Parry", 'P', 2, 0, TYPE_PARRY, ATTR_PHYSICAL, 0.2f, 0, 0, TARGET_SELF};
     g_skill_database[SKILL_ID_SMITE_BASIC] = (Skill){SKILL_ID_SMITE_BASIC, ACTION_TYPE_SMITE, "重击", "Smite", 'S', 3, 0, TYPE_SMASH, ATTR_PHYSICAL, 4.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_RANGED_FIREBALL] = (Skill){SKILL_ID_RANGED_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PIERCE, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_BURST_WINDBLADE] = (Skill){SKILL_ID_BURST_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_RANGED_FLAMEBLAST] = (Skill){SKILL_ID_RANGED_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_SMITE_GREATSWORD] = (Skill){SKILL_ID_SMITE_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 6.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY};
-}
 
-// This helper function reduces code duplication for interrupting healing.
-int InterruptHealing(const Player *attacker, Player *target)
-{
-    if (target->healing > 0)
-    {
-        printf("[%s's healing was interrupted by %s's attack!]\n", target->name, attacker->name);
-        target->healing = 0;
-        return 1;
-    }
-    return 0;
+    g_skill_database[SKILL_ID_RANGED_FIREBALL] = (Skill){SKILL_ID_RANGED_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PIERCE, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_ENERGY_SHIELD] = (Skill){SKILL_ID_ENERGY_SHIELD, ACTION_TYPE_DEFEND, "灵力盾", "Energy Shield", 'D', 2, 1, TYPE_SHIELD, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF};
+    g_skill_database[SKILL_ID_BURST_WINDBLADE] = (Skill){SKILL_ID_BURST_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY};
+
+    g_skill_database[SKILL_ID_RANGED_FLAMEBLAST] = (Skill){SKILL_ID_RANGED_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_GOLD_LIGHT_WARDING] = (Skill){SKILL_ID_GOLD_LIGHT_WARDING, ACTION_TYPE_DEFEND, "金光护体", "Gold Light Warding", 'D', 4, 2, TYPE_FORCEFIELD, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF};
+    g_skill_database[SKILL_ID_SMITE_GREATSWORD] = (Skill){SKILL_ID_SMITE_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 6.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "剑来", "Commanding Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 2.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY};
 }
 
 // --- BLUEPRINT REFACTOR: The New Combat Resolution Engine ---
@@ -124,7 +117,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
     {
         return;
     }
-    const Skill *attacker_skill = &g_skill_database[attacker->current_action_type];
+    const Skill *attacker_skill = &attacker->learned_skills[attacker->current_action_type];
 
     // --- 步骤 2: 处理非交互性技能 ---
     // 如果攻击方的技能目标是自己 (如治疗、格挡架势)，则它不与防御方发生交互
@@ -160,7 +153,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
     }
 
     // 从数据库获取防御方技能实例
-    const Skill *defender_skill = &g_skill_database[defender->current_action_type];
+    const Skill *defender_skill = &defender->learned_skills[defender->current_action_type];
 
     // **蓝图核心：基于防御方技能的 TypeID 进入不同的处理模板**
     switch (defender_skill->type_id)
@@ -198,6 +191,24 @@ void Oneway_Solution(Player *attacker, Player *defender)
             break;
         case TYPE_SMASH: // 沉重的重击无法被弹反，反而会破防
             final_damage = base_damage * 0.8f;
+            break;
+        default: // 其他攻击被部分格挡
+            final_damage = base_damage * 0.6f;
+            break;
+        }
+        break;
+
+    case TYPE_FORCEFIELD:
+        CHN_PRINT("[%s 发动 %s 来弹开 %s 的 %s!]\n", defender->name, defender_skill->name_chn, attacker->name, attacker_skill->name_chn);
+        ENG_PRINT("[%s launched %s to scatter %s's %s!]\n", defender->name, defender_skill->name_eng, attacker->name, attacker_skill->name_eng);
+
+        switch (attacker_skill->type_id)
+        {
+        case TYPE_BURST: // 爆发攻击几乎被尽数弹开
+            final_damage = base_damage * 0.2f;
+            break;
+        case TYPE_BLAST: // 投射物无法近身
+            final_damage = base_damage * 0.3f;
             break;
         default: // 其他攻击被部分格挡
             final_damage = base_damage * 0.6f;
@@ -518,6 +529,18 @@ static inline int can_perform_action(const Player *player, ActionType action_typ
     return 0;
 }
 
+// This helper function reduces code duplication for interrupting healing.
+int InterruptHealing(const Player *attacker, Player *target)
+{
+    if (target->healing > 0)
+    {
+        printf("[%s's healing was interrupted by %s's attack!]\n", target->name, attacker->name);
+        target->healing = 0;
+        return 1;
+    }
+    return 0;
+}
+
 // 这个函数是“更新玩家技能”的唯一逻辑来源
 static void Update_Player_Skills(Player *player)
 {
@@ -568,7 +591,67 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
     // 初始化技能槽，通过调用唯一的技能更新模块
     Update_Player_Skills(player);
 }
-// --- END REFACTOR ---
+
+int Trigger_Fate(Player *player)
+{
+    // 随机选择一个机缘事件 (避开 FATE_None)
+    FateID fate = (rand() % (TOTAL_FATE_TYPES - 1)) + 1;
+
+    printf("\033[95m"); // 用亮紫色显示机缘信息
+
+    switch (fate)
+    {
+    case FATE_Qi_Infusion:
+    {                                   // 使用花括号创建局部作用域
+        int qi_gain = 5 + (rand() % 6); // 获得 5-10 点QI
+        player->QI += qi_gain;
+        CHN_PRINT("[机缘降临!] %s 偶感天地灵气灌体, 瞬间获得了 %d 点QI!\n", player->name, qi_gain);
+        ENG_PRINT("[Fate Arrives!] %s feels the infusion of worldly spiritual qi, instantly gaining %d QI!\n", player->name, qi_gain);
+        break;
+    }
+    case FATE_Vitality_Blessing:
+    {
+        int hp_heal = max_HP[player->XIUWEI] * 0.2f; // 恢复20%最大生命值
+        player->HP += hp_heal;
+        if (player->HP > max_HP[player->XIUWEI])
+            player->HP = max_HP[player->XIUWEI];
+        CHN_PRINT("[机缘降临!] 一滴生命甘露融入 %s 体内, 恢复了 %d 点HP!\n", player->name, hp_heal);
+        ENG_PRINT("[Fate Arrives!] A drop of vitality dew merges into %s's body, restoring %d HP!\n", player->name, hp_heal);
+        break;
+    }
+    case FATE_Enlightenment:
+        player->enraged = 3; // 效果持续1次攻击
+        CHN_PRINT("[机缘降临!] %s 陷入顿悟, 攻击将蕴含天地之力!\n", player->name);
+        ENG_PRINT("[Fate Arrives!] %s has an epiphany, attack will be empowered by heaven and earth!\n", player->name);
+        break;
+    case FATE_Agile_Wind:
+        player->evade += 0.5f; // 效果持续3回合
+        CHN_PRINT("[机缘降临!] %s 的身法变得飘逸, 获得了风灵庇佑!\n", player->name);
+        ENG_PRINT("[Fate Arrives!] %s's movement becomes ethereal, blessed by the agile wind!\n", player->name);
+        break;
+    case FATE_Calamity:
+    {
+        int dmg = player->YUAN * (1 + (rand() % 3)); // 受到 1-3 点伤害
+        player->HP -= dmg;
+        CHN_PRINT("[天道无常!] 一道微小的劫雷劈中了 %s, 造成了 %d 点伤害!\n", player->name, dmg);
+        ENG_PRINT("[Way of Heaven is Unpredictable!] A minor calamity tribulation strikes %s, dealing %d damage!\n", player->name, dmg);
+
+        if (player->HP <= 0)
+        {
+            CHN_PRINT("[天命已尽!] %s 未能渡过此劫, 身死道消!\n", player->name);
+            ENG_PRINT("[Mandate of Heaven is over!] %s failed to survive the tribulation and perished!\n", player->name);
+            printf("\033[0m");
+            return 1; // 返回 1，明确表示有玩家死亡
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    printf("\033[0m");
+}
+
+#pragma endregion
 
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
@@ -758,9 +841,10 @@ static void Apply_Breakthrough_Rewards(Player *player)
     // 3. 重置动态状态
     player->enraged = 0;
     player->healing = 0;
-    
+
     // 4. 应用灵根的突破奖励
-    if (player->root == ROOT_Solid) {
+    if (player->root == ROOT_Solid)
+    {
         player->HP *= 1.2f;
     }
     float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
@@ -960,7 +1044,6 @@ void Player_action(Game game, Player *YOU)
     }
 }
 
-// --- BLUEPRINT REFACTOR: Simplified, Presentation-Only AI Action ---
 void CPU_action(Player *player)
 {
     // 防火墙：如果AI没有做出任何决定，直接返回
@@ -968,7 +1051,7 @@ void CPU_action(Player *player)
         return;
 
     // 从数据库中获取AI选择的技能的静态数据
-    const Skill *chosen_skill = &g_skill_database[player->current_action_type];
+    const Skill *chosen_skill = &player->learned_skills[player->current_action_type];
 
     // 设置通用数据
     player->action_cost = chosen_skill->cost;
@@ -1096,65 +1179,6 @@ void Game_summary(Player *YOU, Player *CPU)
         ENG_PRINT("Current Win Rate : \033[96m%.2f%%\033[0m (%d Win / %d Game)\n", win_rate, player_wins, total_games_played);
         printf("----------------\n");
     }
-}
-
-int Trigger_Fate(Player *player)
-{
-    // 随机选择一个机缘事件 (避开 FATE_None)
-    FateID fate = (rand() % (TOTAL_FATE_TYPES - 1)) + 1;
-
-    printf("\033[95m"); // 用亮紫色显示机缘信息
-
-    switch (fate)
-    {
-    case FATE_Qi_Infusion:
-    {                                   // 使用花括号创建局部作用域
-        int qi_gain = 5 + (rand() % 6); // 获得 5-10 点QI
-        player->QI += qi_gain;
-        CHN_PRINT("[机缘降临!] %s 偶感天地灵气灌体, 瞬间获得了 %d 点QI!\n", player->name, qi_gain);
-        ENG_PRINT("[Fate Arrives!] %s feels the infusion of worldly spiritual qi, instantly gaining %d QI!\n", player->name, qi_gain);
-        break;
-    }
-    case FATE_Vitality_Blessing:
-    {
-        int hp_heal = max_HP[player->XIUWEI] * 0.2f; // 恢复20%最大生命值
-        player->HP += hp_heal;
-        if (player->HP > max_HP[player->XIUWEI])
-            player->HP = max_HP[player->XIUWEI];
-        CHN_PRINT("[机缘降临!] 一滴生命甘露融入 %s 体内, 恢复了 %d 点HP!\n", player->name, hp_heal);
-        ENG_PRINT("[Fate Arrives!] A drop of vitality dew merges into %s's body, restoring %d HP!\n", player->name, hp_heal);
-        break;
-    }
-    case FATE_Enlightenment:
-        player->enraged = 3; // 效果持续1次攻击
-        CHN_PRINT("[机缘降临!] %s 陷入顿悟, 攻击将蕴含天地之力!\n", player->name);
-        ENG_PRINT("[Fate Arrives!] %s has an epiphany, attack will be empowered by heaven and earth!\n", player->name);
-        break;
-    case FATE_Agile_Wind:
-        player->evade += 0.5f; // 效果持续3回合
-        CHN_PRINT("[机缘降临!] %s 的身法变得飘逸, 获得了风灵庇佑!\n", player->name);
-        ENG_PRINT("[Fate Arrives!] %s's movement becomes ethereal, blessed by the agile wind!\n", player->name);
-        break;
-    case FATE_Calamity:
-    {
-        int dmg = player->YUAN * (1 + (rand() % 3)); // 受到 1-3 点伤害
-        player->HP -= dmg;
-        CHN_PRINT("[天道无常!] 一道微小的劫雷劈中了 %s, 造成了 %d 点伤害!\n", player->name, dmg);
-        ENG_PRINT("[Way of Heaven is Unpredictable!] A minor calamity tribulation strikes %s, dealing %d damage!\n", player->name, dmg);
-
-        if (player->HP <= 0)
-        {
-            CHN_PRINT("[天命已尽!] %s 未能渡过此劫, 身死道消!\n", player->name);
-            ENG_PRINT("[Mandate of Heaven is over!] %s failed to survive the tribulation and perished!\n", player->name);
-            printf("\033[0m");
-            return 1; // 返回 1，明确表示有玩家死亡
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    printf("\033[0m");
 }
 
 void Load_Config()
