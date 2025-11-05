@@ -485,6 +485,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// --- Tool Funcs that havs special use ---
 #pragma region tool_function
 
 void clear_buffer()
@@ -652,6 +653,9 @@ int Trigger_Fate(Player *player)
 }
 
 #pragma endregion
+
+// --- Stable Core Process Functions ---
+#pragma region Core Process
 
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
@@ -882,7 +886,7 @@ static void Resolve_Breakthrough(Player *player)
     }
 }
 
-#pragma endregion status_resolve
+#pragma endregion 
 
 void Status_settlement(Player *player)
 {
@@ -1245,6 +1249,8 @@ void Load_Config()
     CHN_PRINT("[提示] 已成功加载 config.txt 配置文件。\n");
     ENG_PRINT("[Info] Successfully loaded config.txt.\n");
 }
+
+#pragma endregion 
 
 // --- AI Optimization ---
 #pragma region AIs
