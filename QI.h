@@ -50,7 +50,7 @@
 #endif
 
 // AI训练开关
-// #define AI_TRAINING_SET
+#define AI_TRAINING_SET
 
 #define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
@@ -84,16 +84,17 @@ typedef enum
 typedef enum
 {
     TYPE_NONE,
-    TYPE_SLASH,     //劈砍
-    TYPE_SMASH,     //重锤
-    TYPE_PIERCE,    //穿刺
-    TYPE_BURST,     //爆发
-    TYPE_BLAST,     //爆破
-    TYPE_SHIELD,    //护盾
-    TYPE_FORCEFIELD,//力场 
-    TYPE_PARRY,     //招架
-    TYPE_HEAL,      //疗愈
-    TYPE_BUFF,      
+    TYPE_SLASH,      // 劈砍
+    TYPE_SMASH,      // 重锤
+    TYPE_PIERCE,     // 穿刺
+    TYPE_BURST,      // 爆发
+    TYPE_BLAST,      // 爆破
+    TYPE_PROJECT,    // 投射
+    TYPE_SHIELD,     // 护盾
+    TYPE_FORCEFIELD, // 力场
+    TYPE_PARRY,      // 招架
+    TYPE_HEAL,       // 疗愈
+    TYPE_BUFF,
     TYPE_DEBUFF
 } TypeID;
 
@@ -110,11 +111,11 @@ typedef enum
     ATTR_SPIRITUAL
 } AttributeID;
 
-
 // --- BLUEPRINT REFACTOR: Clarify Naming ---
 // ActionType: 技能的“宏观战斗类别”。决定了它在逻辑上属于哪一“族”的行为。
 // 玩家的技能槽位、AI的决策目标，都基于这个类型。
-typedef enum {
+typedef enum
+{
     ACTION_TYPE_GAIN_QI,
     ACTION_TYPE_MELEE,
     ACTION_TYPE_DEFEND,
@@ -131,24 +132,26 @@ typedef enum {
 
 // SkillID: 技能数据在数据库中的“唯一标识符”。
 // 每个新技能（包括升级版）都应该有一个独一无二的SkillID。
-typedef enum {
+typedef enum
+{
     SKILL_ID_NONE = -1,
     // 凡人
     SKILL_ID_GAIN_QI = 0,
-    SKILL_ID_MELEE,
+    SKILL_ID_STRIKE,
     SKILL_ID_DEFEND,
     SKILL_ID_HEAL,
-    SKILL_ID_BOOST_WARCRY,
+    SKILL_ID_WARCRY,
     SKILL_ID_PARRY,
-    SKILL_ID_SMITE_BASIC,
+    SKILL_ID_SMITE,
     // 炼气
-    SKILL_ID_RANGED_FIREBALL,
+    SKILL_ID_FIREBALL,
     SKILL_ID_ENERGY_SHIELD,
-    SKILL_ID_BURST_WINDBLADE,
+    SKILL_ID_WINDBLADE,
+    SKILL_ID_CONCENTRATION,
     // 筑基
-    SKILL_ID_RANGED_FLAMEBLAST,
+    SKILL_ID_FLAMEBLAST,
     SKILL_ID_GOLD_LIGHT_WARDING,
-    SKILL_ID_SMITE_GREATSWORD,
+    SKILL_ID_GREATSWORD,
     SKILL_ID_COMMANDING_SWORDS,
     SKILL_ID_TERMINATE_THUNDER,
     // ... 未来所有新技能都在此添加唯一ID
@@ -177,28 +180,31 @@ typedef enum
 } FateID;
 
 // 2. 接着定义所有核心数据结构体 (Structs)
-typedef struct Skill_s {
-    SkillID       skill_id;      // 技能的唯一ID
-    ActionType    action_type;   // 技能的宏观类别
-    const char*   name_chn;
-    const char*   name_eng;
-    char          hotkey;
-    int           cost;
-    int           rank;          // 技能阶级
-    TypeID        type_id;       // 微观物理/效果分类
-    AttributeID   attribute_id;  // 元素属性
-    float         base_power;
+typedef struct Skill_s
+{
+    SkillID skill_id;       // 技能的唯一ID
+    ActionType action_type; // 技能的宏观类别
+    const char *name_chn;
+    const char *name_eng;
+    char hotkey;
+    int cost;
+    int rank;                 // 技能阶级
+    TypeID type_id;           // 微观物理/效果分类
+    AttributeID attribute_id; // 元素属性
+    float base_power;
     int effect_duration;
     float effect_chance;
     TargetType target_type;
+    const char *prompt_chn; // 中文提示词 (包含一个 %s 用于玩家名)
+    const char *prompt_eng; // 英文提示词 (包含一个 %s 用于玩家名)
 } Skill;
 
 typedef struct Player_s
 {
     char *name;
     int HP, QI, ATK, YUAN, XIUWEI;
-    ActionType current_action_type; // 玩家本回合的“意图”是哪个宏观类别
-    Skill      learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
+    ActionType current_action_type;           // 玩家本回合的“意图”是哪个宏观类别
+    Skill learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
     int gain_combo, burst_count, healing, enraged;
     float evade;
     SpiritualRootID root;

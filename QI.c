@@ -1,5 +1,4 @@
 #include "QI.h"
-// 2025.10.31
 
 #pragma region Global Variable Definitions
 // ---  ---
@@ -89,23 +88,24 @@ Skill g_skill_database[TOTAL_SKILLS];
 // --- Database Initialization ---
 void Initialize_Databases()
 {
-    g_skill_database[SKILL_ID_GAIN_QI] = (Skill){SKILL_ID_GAIN_QI, ACTION_TYPE_GAIN_QI, "集气", "Gain QI", 'Q', 0, 0, TYPE_BUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_MELEE] = (Skill){SKILL_ID_MELEE, ACTION_TYPE_MELEE, "轻击", "Melee", 'A', 1, 0, TYPE_SLASH, ATTR_PHYSICAL, 1.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_DEFEND] = (Skill){SKILL_ID_DEFEND, ACTION_TYPE_DEFEND, "防御", "Defend", 'D', 1, 0, TYPE_SHIELD, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_HEAL] = (Skill){SKILL_ID_HEAL, ACTION_TYPE_HEAL, "养元", "Heal", 'H', 1, 0, TYPE_HEAL, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_BOOST_WARCRY] = (Skill){SKILL_ID_BOOST_WARCRY, ACTION_TYPE_BOOST, "战吼", "Warcry", 'C', 2, 0, TYPE_DEBUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_PARRY] = (Skill){SKILL_ID_PARRY, ACTION_TYPE_PARRY, "格挡", "Parry", 'P', 2, 0, TYPE_PARRY, ATTR_PHYSICAL, 0.2f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_SMITE_BASIC] = (Skill){SKILL_ID_SMITE_BASIC, ACTION_TYPE_SMITE, "重击", "Smite", 'S', 3, 0, TYPE_SMASH, ATTR_PHYSICAL, 4.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_GAIN_QI] = (Skill){SKILL_ID_GAIN_QI, ACTION_TYPE_GAIN_QI, "集气", "Gain QI", 'Q', 0, 0, TYPE_BUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF, "<%s 开始引导天地灵气...>", "<%s begins to channel worldly energy...>"};
+    g_skill_database[SKILL_ID_STRIKE] = (Skill){SKILL_ID_STRIKE, ACTION_TYPE_MELEE, "轻击", "Melee", 'A', 1, 0, TYPE_SLASH, ATTR_PHYSICAL, 1.0f, 0, 0, TARGET_ENEMY, "<%s 发动了迅捷的攻击!>", "<%s unleashes a swift strike!>"};
+    g_skill_database[SKILL_ID_DEFEND] = (Skill){SKILL_ID_DEFEND, ACTION_TYPE_DEFEND, "防御", "Defend", 'D', 1, 0, TYPE_SHIELD, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF, "<%s 摆开了防御架势!>", "<%s raises a defensive guard!>"};
+    g_skill_database[SKILL_ID_HEAL] = (Skill){SKILL_ID_HEAL, ACTION_TYPE_HEAL, "养元", "Heal", 'H', 1, 0, TYPE_HEAL, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF, "<%s 开始运气修复全身经脉>", "<%s starts to circulate Qi to repair the body's meridians>"};
+    g_skill_database[SKILL_ID_WARCRY] = (Skill){SKILL_ID_WARCRY, ACTION_TYPE_BOOST, "战吼", "Warcry", 'C', 2, 0, TYPE_DEBUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_ENEMY, "<%s 发出一声震慑心魄的战吼!>", "<%s lets out a deafening warcry!>"};
+    g_skill_database[SKILL_ID_PARRY] = (Skill){SKILL_ID_PARRY, ACTION_TYPE_PARRY, "格挡", "Parry", 'P', 2, 0, TYPE_PARRY, ATTR_PHYSICAL, 0.2f, 0, 0, TARGET_SELF, "<%s 眼神一凝，摆出了完美的格挡架势。>", "<%s takes a perfect parry stance, ready to counter!>"};
+    g_skill_database[SKILL_ID_SMITE] = (Skill){SKILL_ID_SMITE, ACTION_TYPE_SMITE, "重击", "Smite", 'S', 3, 0, TYPE_SMASH, ATTR_PHYSICAL, 4.0f, 0, 0, TARGET_ENEMY, "<%s 汇聚全身力气，发动了沉重的猛击!>", "<%s channels their strength into a powerful smite!>"};
 
-    g_skill_database[SKILL_ID_RANGED_FIREBALL] = (Skill){SKILL_ID_RANGED_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PIERCE, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_ENERGY_SHIELD] = (Skill){SKILL_ID_ENERGY_SHIELD, ACTION_TYPE_DEFEND, "灵力盾", "Energy Shield", 'D', 2, 1, TYPE_SHIELD, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_BURST_WINDBLADE] = (Skill){SKILL_ID_BURST_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_FIREBALL] = (Skill){SKILL_ID_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PROJECT, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY, "<%s 掌心凝聚出一颗灼热的火球!>", "<%s conjures and hurls a searing fireball!>"};
+    g_skill_database[SKILL_ID_ENERGY_SHIELD] = (Skill){SKILL_ID_ENERGY_SHIELD, ACTION_TYPE_DEFEND, "灵力盾", "Energy Shield", 'D', 2, 1, TYPE_SHIELD, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 以灵力在身前构筑了一面无形的护盾!>", "<%s summons a shimmering shield of pure energy!>"};
+    g_skill_database[SKILL_ID_CONCENTRATION] = (Skill){SKILL_ID_CONCENTRATION, ACTION_TYPE_BOOST, "凝神", "Get Focused", 'C', 3, 1, TYPE_BUFF, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 凝气入体，聚精会神>", "<%s saves all his spirits for next move>"};
+    g_skill_database[SKILL_ID_WINDBLADE] = (Skill){SKILL_ID_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY, "<%s 挥手间，数道锋利的风刃破空而去!>", "<%s unleashes a flurry of razor-sharp wind blades!>"};
 
-    g_skill_database[SKILL_ID_RANGED_FLAMEBLAST] = (Skill){SKILL_ID_RANGED_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_GOLD_LIGHT_WARDING] = (Skill){SKILL_ID_GOLD_LIGHT_WARDING, ACTION_TYPE_DEFEND, "金光护体", "Gold Light Warding", 'D', 4, 2, TYPE_FORCEFIELD, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF};
-    g_skill_database[SKILL_ID_SMITE_GREATSWORD] = (Skill){SKILL_ID_SMITE_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 6.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "剑来", "Commanding Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 2.0f, 0, 0, TARGET_ENEMY};
-    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY};
+    g_skill_database[SKILL_ID_FLAMEBLAST] = (Skill){SKILL_ID_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY, "<%s 吟唱片刻，一颗毁灭性的炎爆弹呼啸而出!>", "<%s unleashes a devastating blast of fire and flame!>"};
+    g_skill_database[SKILL_ID_GOLD_LIGHT_WARDING] = (Skill){SKILL_ID_GOLD_LIGHT_WARDING, ACTION_TYPE_DEFEND, "金光护体", "Gold Light Warding", 'D', 4, 2, TYPE_FORCEFIELD, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF, "<%s 周身金光大盛，形成了坚不可摧的护体神功!>", "<%s is enveloped in a brilliant ward of golden light!>"};
+    g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
+    g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "灵剑", "Soul Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 1.5f, 0, 0, TARGET_ENEMY, "<%s 轻喝一声：“剑来！”，无数飞剑应声而至!>", "<%s utters a single command: \"Swords, arise!\", and countless blades answer the call!>"};
+    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
 }
 
 // --- BLUEPRINT REFACTOR: The New Combat Resolution Engine ---
@@ -124,6 +124,10 @@ void Oneway_Solution(Player *attacker, Player *defender)
     if (attacker_skill->target_type == TARGET_SELF)
     {
         return;
+    }
+    else
+    {
+        attacker->healing = 0;
     }
 
     // --- 步骤 3: 前置检定 (闪避) ---
@@ -207,7 +211,10 @@ void Oneway_Solution(Player *attacker, Player *defender)
         case TYPE_BURST: // 爆发攻击几乎被尽数弹开
             final_damage = base_damage * 0.2f;
             break;
-        case TYPE_BLAST: // 投射物无法近身
+        case TYPE_PROJECT: // 投射物无法近身
+            final_damage = base_damage * 0.2f;
+            break;
+        case TYPE_BLAST:
             final_damage = base_damage * 0.3f;
             break;
         default: // 其他攻击被部分格挡
@@ -334,7 +341,6 @@ int main(int argc, char *argv[])
                 break; // 跳出这个 while 循环，直接进入 Game_summary
             }
 
-            // 新的、更具兼容性的代码:
             // 只要是需要LLM思考的模式（6号或7号的特定周期），就提前生成Prompt
             if (game.opponent_type == 6 && game.is_bridge_mode)
             { // “事无巨细”模式，每回合都提前生成
@@ -800,7 +806,6 @@ static void Resolve_Persistent_Effects(Player *player)
                 player->HP = max_hp_for_realm;
             }
         }
-        player->healing = 0; // 治疗是一次性效果
     }
 
     // 激怒效果
@@ -886,7 +891,7 @@ static void Resolve_Breakthrough(Player *player)
     }
 }
 
-#pragma endregion 
+#pragma endregion
 
 void Status_settlement(Player *player)
 {
@@ -1015,24 +1020,63 @@ void Player_action(Game game, Player *YOU)
                 YOU->current_action_type = skill->action_type;
                 YOU->action_cost = skill->cost;
 
-                printf("\033[34m"); // 蓝色
-                CHN_PRINT("<你选择了 %s!>\n", skill->name_chn);
-                ENG_PRINT("<You chose %s!>\n", skill->name_eng);
+                // --- 核心修正: 使用数据库中的提示词 ---
+                printf("\033[34m");
+                CHN_PRINT(skill->prompt_chn, YOU->name);
+                ENG_PRINT(skill->prompt_eng, YOU->name);
+                printf("\n"); // 确保换行
+
+                // printf("\033[34m"); // 蓝色
+                // CHN_PRINT("<你选择了 %s!>\n", skill->name_chn);
+                // ENG_PRINT("<You chose %s!>\n", skill->name_eng);
 
                 // 特殊逻辑处理
-                if (skill->skill_id == SKILL_ID_GAIN_QI)
+                switch (YOU->current_action_type)
                 {
+                case SKILL_ID_GAIN_QI:
                     YOU->QI += YOU->gain_combo;
                     CHN_PRINT("你集气成功，获得%d点气力！你的气力已变为%d。\n", YOU->gain_combo, YOU->QI);
                     ENG_PRINT("You gained %d QI! Your QI is now %d.\n", YOU->gain_combo, YOU->QI);
-                }
-                if (skill->action_type == ACTION_TYPE_BURST)
+                    break;
+                case ACTION_TYPE_BURST:
                 {
                     int burst_cost_per_hit = skill->cost;
                     YOU->burst_count = YOU->QI / burst_cost_per_hit;
                     YOU->action_cost = YOU->burst_count * burst_cost_per_hit;
-                    CHN_PRINT("<你已形成%d把%s!>\n", YOU->burst_count, skill->name_chn);
-                    ENG_PRINT("<You formed %d %s(s)!>\n", YOU->burst_count, skill->name_eng);
+                    switch (skill->skill_id)
+                    {
+                    case SKILL_ID_WINDBLADE:
+                        CHN_PRINT("<你已形成 %d 把风刃!>\n", YOU->burst_count);
+                        ENG_PRINT("<You formed %d windblade(s)!>\n", YOU->burst_count);
+                        break;
+                    case SKILL_ID_COMMANDING_SWORDS:
+                        CHN_PRINT("<你唤来 %d 把灵剑!>\n", YOU->burst_count);
+                        ENG_PRINT("<You called %d Soul sword(s)!>\n", YOU->burst_count);
+                        break;
+                    default:
+                        CHN_PRINT("<你已形成 %d 把 %s!>\n", YOU->burst_count, skill->name_chn);
+                        ENG_PRINT("<You formed %d %s(s)!>\n", YOU->burst_count, skill->name_eng);
+                        break;
+                    }
+                    break;
+                }
+                case ACTION_TYPE_BOOST:
+                    switch (skill->skill_id)
+                    {
+                    case SKILL_ID_WARCRY:
+                        YOU->enraged += 3;
+                        break;
+                    case SKILL_ID_CONCENTRATION:
+                        YOU->enraged += 2;
+                        YOU->evade = 0.75f;
+                        break;
+                    }
+                    break;
+                case ACTION_TYPE_HEAL:
+                    YOU->healing = (YOU->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
+                    break;
+                default:
+                    break;
                 }
 
                 action_found = 1;
@@ -1062,9 +1106,14 @@ void CPU_action(Player *player)
 
     printf("\033[91m"); // AI行动统一用红色
 
-    // 打印AI的选择，完全由数据驱动
-    CHN_PRINT("<%s 选择了 %s!>\n", player->name, chosen_skill->name_chn);
-    ENG_PRINT("<%s chose to use %s!>\n", player->name, chosen_skill->name_eng);
+    // --- 核心修正: 使用数据库中的提示词 ---
+    CHN_PRINT(chosen_skill->prompt_chn, player->name);
+    ENG_PRINT(chosen_skill->prompt_eng, player->name);
+    printf("\n");
+
+    // // 打印AI的选择，完全由数据驱动
+    // CHN_PRINT("<%s 选择了 %s!>\n", player->name, chosen_skill->name_chn);
+    // ENG_PRINT("<%s chose to use %s!>\n", player->name, chosen_skill->name_eng);
 
     // --- 特殊逻辑前置处理 ---
     // 和Player_action类似，处理一些即时或需要预计算的效果
@@ -1080,10 +1129,35 @@ void CPU_action(Player *player)
         int burst_cost_per_hit = chosen_skill->cost;
         player->burst_count = player->QI / burst_cost_per_hit;
         player->action_cost = player->burst_count * burst_cost_per_hit;
-        CHN_PRINT("<%s 准备了 %d 次 %s!>\n", player->name, player->burst_count, chosen_skill->name_chn);
-        ENG_PRINT("<%s prepared %d %s(s)!>\n", player->name, player->burst_count, chosen_skill->name_eng);
+        switch (chosen_skill->skill_id)
+        {
+        case SKILL_ID_WINDBLADE:
+            CHN_PRINT("<%s 已形成 %d 把风刃!>\n", player->name, player->burst_count);
+            ENG_PRINT("<%s formed %d windblade(s)!>\n", player->name, player->burst_count);
+            break;
+        case SKILL_ID_COMMANDING_SWORDS:
+            CHN_PRINT("<%s 唤来 %d 把灵剑!>\n", player->name, player->burst_count);
+            ENG_PRINT("<%s called %d Soul sword(s)!>\n", player->name, player->burst_count);
+            break;
+        default:
+            CHN_PRINT("<%s 已形成 %d 把 %s!>\n", player->name, player->burst_count, chosen_skill->name_chn);
+            ENG_PRINT("<%s formed %d %s(s)!>\n", player->name, player->burst_count, chosen_skill->name_eng);
+            break;
+        }
     }
     break;
+    case ACTION_TYPE_BOOST:
+        switch (chosen_skill->skill_id)
+        {
+        case SKILL_ID_WARCRY:
+            player->enraged += 3;
+            break;
+        case SKILL_ID_CONCENTRATION:
+            player->enraged += 2;
+            player->evade = 0.75f;
+            break;
+        }
+        break;
     case ACTION_TYPE_HEAL:
         player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
         break;
@@ -1250,7 +1324,7 @@ void Load_Config()
     ENG_PRINT("[Info] Successfully loaded config.txt.\n");
 }
 
-#pragma endregion 
+#pragma endregion
 
 // --- AI Optimization ---
 #pragma region AIs
