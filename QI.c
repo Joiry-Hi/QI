@@ -561,17 +561,22 @@ static void Resolve_Immediate_Effects(Player *player)
         }
         break;
     case ACTION_TYPE_HEAL:
+        int heal_amount;
         switch (chosen_skill->skill_id)
         {
         case SKILL_ID_HEAL:
             player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
+            heal_amount = 2 * player->XIUWEI;
+            player->HP += heal_amount;
             break;
         case SKILL_ID_EVERGREEN_ART:
             player->healing = (player->XIUWEI + 1);
-            player->HP += player->XIUWEI;
+            heal_amount = 5 * player->XIUWEI;
             break;
         }
-
+        ENG_PRINT("[%s healed for %d HP immediately!]\n", player->name, heal_amount);
+        CHN_PRINT("[%s 立即恢复了 %d 点生命值！]\n", player->name, heal_amount);
+        break;
     // 其他技能没有需要在这里预处理的逻辑
     default:
         break;
@@ -1112,7 +1117,6 @@ void Player_action(Game game, Player *YOU)
                 printf("\n");
 
                 // c. 调用统一的即时效果模块，处理所有后续逻辑和打印
-                Resolve_Immediate_Effects(YOU);
 
                 action_found = 1;
                 break;
@@ -1150,48 +1154,55 @@ void CPU_action(Player *player)
     printf("\n");
 
     // 2. 调用统一的即时效果模块，处理所有后续逻辑和打印
-    Resolve_Immediate_Effects(player);
 
     // 3. 恢复默认颜色
     printf("\033[0m");
     // --- END REFACTOR ---
 }
 
-void Action_resolve(Player *YOU, Player *CPU) // 互动解算
+void Action_resolve(Player *YOU, Player *CPU)
 {
-    printf("\033[33m"); // Set color to yellow for action resolution
+    // --- BLUEPRINT REFACTOR: The True Turn Resolution Engine ---
 
-    // 在战斗结算前，双方的 current_action_type 已经确定
-    // 因此我们可以安全地在这里记录双方的意图
+    printf("\033[33m"); // 结算信息统一用黄色
 
-    Oneway_Solution(YOU, CPU);
-    Oneway_Solution(CPU, YOU);
+    // === 阶段一: 即时效果结算 ===
+    // 在所有战斗交互之前，先结算双方选择的技能所附带的“施法时”效果。
+    // 这个顺序依然重要：通常玩家（YOU）的行动优先结算。
+    Resolve_Immediate_Effects(YOU);
+    Resolve_Immediate_Effects(CPU);
 
-    if (game.history_log_count < STRATEGIC_CYCLE)
-    {
-        game.player_turn_history[game.history_log_count].action_type = YOU->current_action_type;
-        game.history_log_count++;
-    }
-
+    // === 阶段二: 日志记录 (行动意图) ===
+    // 记录下双方在所有状态变化后的最终行动选择和消耗
     if (g_log_count < MAX_LOG_TURNS)
     {
         AI_TurnLog *log = &g_game_log[g_log_count];
-
-        // 记录行动 (从 YOU 的视角)
         log->chosen_action = YOU->current_action_type;
         log->opponent_action = CPU->current_action_type;
         log->action_cost = YOU->action_cost;
+    }
 
-        // 记录结果 (从 YOU 的视角)
-        log->damage_dealt = CPU->damage_received; // YOU 造成的伤害，就是 CPU 受到的伤害
-        log->damage_taken = YOU->damage_received; // YOU 受到的伤害
+    // === 阶段三: 战斗交互结算 ===
+    // 调用我们的战斗引擎，处理双方的直接对抗
+    Oneway_Solution(YOU, CPU);
+    Oneway_Solution(CPU, YOU);
 
+    // === 阶段四: 日志记录 (战斗结果) ===
+    if (g_log_count < MAX_LOG_TURNS)
+    {
+        AI_TurnLog *log = &g_game_log[g_log_count];
+        log->damage_dealt = CPU->damage_received;
+        log->damage_taken = YOU->damage_received;
         g_log_count++;
     }
 
+    // === 阶段五: 回合结束状态结算 ===
+    // 处理所有回合结束时的状态变化（中毒、治疗、buff/debuff持续时间减少等）
     Status_settlement(YOU);
     Status_settlement(CPU);
+
     printf("\033[0m\n");
+    // --- END REFACTOR ---
 }
 
 void Game_summary(Player *YOU, Player *CPU)
