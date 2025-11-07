@@ -103,8 +103,10 @@ typedef enum
     ATTR_NONE,
     ATTR_PHYSICAL,
     ATTR_FIRE,
+    ATTR_ICE,
     ATTR_WIND,
     ATTR_WOOD,
+    ATTR_METAL,
     ATTR_THUNDER,
     ATTR_EARTH,
     ATTR_LIGHT,
@@ -119,12 +121,12 @@ typedef enum
 {
     ACTION_TYPE_GAIN_QI,
     ACTION_TYPE_MELEE,
+    ACTION_TYPE_RANGED,
     ACTION_TYPE_DEFEND,
     ACTION_TYPE_HEAL,
-    ACTION_TYPE_BOOST,
     ACTION_TYPE_PARRY,
+    ACTION_TYPE_BOOST,
     ACTION_TYPE_SMITE,
-    ACTION_TYPE_RANGED,
     ACTION_TYPE_BURST,
     ACTION_TYPE_TERMINATE,
     TOTAL_ACTION_TYPES, // 宏观类别的总数
@@ -212,7 +214,7 @@ typedef struct Player_s
     int HP, QI, ATK, YUAN, XIUWEI;
     ActionType current_action_type;           // 玩家本回合的“意图”是哪个宏观类别
     Skill learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
-    int gain_combo, burst_count, healing, enraged;
+    int gain_combo, burst_count, healing, enraged, cursed;
     float evade;
     SpiritualRootID root;
     int damage_received, action_cost;
@@ -281,8 +283,6 @@ extern const char *CHN_Root_Names[TOTAL_ROOT_TYPES];
 
 #pragma region Function_Prototypes
 // 3. 最后声明所有函数原型
-// Tool Functions
-void clear_buffer();
 
 // Data Manager
 void Initialize_Databases();

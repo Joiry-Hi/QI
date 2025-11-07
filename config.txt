@@ -10,16 +10,16 @@
 # 初始灵气值 (Initial Qi Points)
 QI = 0
 
-# 初始境界 (Initial Realm Level, 0=Mortal, 1=Qi Refining, etc.)
-XIUWEI = 0
+# 初始境界 (1凡人 2炼气 3筑基 4结丹 5元婴 6化神 7炼虚 8合体 9飞升)
+XIUWEI = 9
 
-# 初始闪避率 (Initial Evade Chance, 0.05 = 5%)
+# 初始闪避率 (Basic Evade Chance, 0.05 = 5%)
 Evade = 0
 
 REPS = 5000
 
-# 0.破法者 1.狂战士 2.神龟流 3.苦修者 4.豪赌徒 5.狂才 6.悟道者 7.大将军
-Enemy = 6
+# 1.破法者 2.狂战士 3.神龟流 4.苦修者 5.豪赌徒 6.狂才 7.悟道者 8.大将军
+Enemy = -1
 
 # --- AI Behavior Settings ---
 # 控制启发式AI是否启用随机性 (0 = 关闭, 1 = 开启)

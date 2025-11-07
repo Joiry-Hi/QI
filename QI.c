@@ -19,7 +19,7 @@ char *Realm[10] = {"凡人", "炼气", "筑基", "结丹", "元婴", "化神", "
 char *Eng_Realm[10] = {"Mortal", "Qi Refining", "Foundation", "Core Formation", "Nascent Soul", "Spirit Severing", "Void Refinement", "Unity", "Great Ascension", "Ascension"};
 int max_HP[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
 int max_QI[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
-int Yuan[10] = {1, 2, 5, 10, 20, 100, 500, 1000, 5000, 10000};
+int Yuan[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 
 const char *GENERAL_NAMES[] = {
     "Disruptor", // ID 0
@@ -91,7 +91,7 @@ void Initialize_Databases()
     g_skill_database[SKILL_ID_GAIN_QI] = (Skill){SKILL_ID_GAIN_QI, ACTION_TYPE_GAIN_QI, "集气", "Gain QI", 'Q', 0, 0, TYPE_BUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF, "<%s 开始引导天地灵气...>", "<%s begins to channel worldly energy...>"};
     g_skill_database[SKILL_ID_STRIKE] = (Skill){SKILL_ID_STRIKE, ACTION_TYPE_MELEE, "轻击", "Melee", 'A', 1, 0, TYPE_SLASH, ATTR_PHYSICAL, 1.0f, 0, 0, TARGET_ENEMY, "<%s 发动了迅捷的攻击!>", "<%s unleashes a swift strike!>"};
     g_skill_database[SKILL_ID_DEFEND] = (Skill){SKILL_ID_DEFEND, ACTION_TYPE_DEFEND, "防御", "Defend", 'D', 1, 0, TYPE_SHIELD, ATTR_NONE, 1.0f, 0, 0, TARGET_SELF, "<%s 摆开了防御架势!>", "<%s raises a defensive guard!>"};
-    g_skill_database[SKILL_ID_HEAL] = (Skill){SKILL_ID_HEAL, ACTION_TYPE_HEAL, "养元", "Heal", 'H', 1, 0, TYPE_HEAL, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF, "<%s 开始运气修复全身经脉>", "<%s starts to circulate Qi to repair the body's meridians>"};
+    g_skill_database[SKILL_ID_HEAL] = (Skill){SKILL_ID_HEAL, ACTION_TYPE_HEAL, "养元", "Heal", 'H', 1, 0, TYPE_HEAL, ATTR_WOOD, 1.0f, 0, 0, TARGET_SELF, "<%s 开始运气修复全身经脉>", "<%s starts to circulate Qi to repair the body's meridians>"};
     g_skill_database[SKILL_ID_WARCRY] = (Skill){SKILL_ID_WARCRY, ACTION_TYPE_BOOST, "战吼", "Warcry", 'C', 2, 0, TYPE_DEBUFF, ATTR_NONE, 1.0f, 0, 0, TARGET_ENEMY, "<%s 发出一声震慑心魄的战吼!>", "<%s lets out a deafening warcry!>"};
     g_skill_database[SKILL_ID_PARRY] = (Skill){SKILL_ID_PARRY, ACTION_TYPE_PARRY, "格挡", "Parry", 'P', 2, 0, TYPE_PARRY, ATTR_PHYSICAL, 0.2f, 0, 0, TARGET_SELF, "<%s 眼神一凝，摆出了完美的格挡架势。>", "<%s takes a perfect parry stance, ready to counter!>"};
     g_skill_database[SKILL_ID_SMITE] = (Skill){SKILL_ID_SMITE, ACTION_TYPE_SMITE, "重击", "Smite", 'S', 3, 0, TYPE_SMASH, ATTR_PHYSICAL, 4.0f, 0, 0, TARGET_ENEMY, "<%s 汇聚全身力气，发动了沉重的猛击!>", "<%s channels their strength into a powerful smite!>"};
@@ -104,14 +104,14 @@ void Initialize_Databases()
 
     g_skill_database[SKILL_ID_FLAMEBLAST] = (Skill){SKILL_ID_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY, "<%s 吟唱片刻，一颗毁灭性的炎爆弹呼啸而出!>", "<%s unleashes a devastating blast of fire and flame!>"};
     g_skill_database[SKILL_ID_GOLD_LIGHT_WARDING] = (Skill){SKILL_ID_GOLD_LIGHT_WARDING, ACTION_TYPE_DEFEND, "金光护体", "Gold Light Warding", 'D', 4, 2, TYPE_FORCEFIELD, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF, "<%s 周身金光大盛，形成了坚不可摧的护体神功!>", "<%s is enveloped in a brilliant ward of golden light!>"};
-    g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
+    g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_METAL, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
     g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "灵剑", "Soul Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 1.5f, 0, 0, TARGET_ENEMY, "<%s 轻喝一声：“剑来！”，无数飞剑应声而至!>", "<%s utters a single command: \"Swords, arise!\", and countless blades answer the call!>"};
     g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
 
-    g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_RANGED, "剑影分光术", "Sword Phantom Art", 'R', 6, 3, TYPE_BURST, ATTR_WIND, 3.0f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
-    g_skill_database[SKILL_ID_CORE_ERUPTION] = (Skill){SKILL_ID_CORE_ERUPTION, ACTION_TYPE_BOOST, "丹元爆发", "Core Eruption", 'C', 6, 3, TYPE_BUFF, ATTR_NONE, 2.0f, 2, 0, TARGET_SELF, "<%s 碎丹求道，霎时气场狂涨！>", "<%s shattering the Core, his presence surged with terrifying might.>"};
+    g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_RANGED, "剑影分光术", "Sword Phantom Art", 'R', 6, 3, TYPE_BURST, ATTR_WIND, 0.5f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
+    g_skill_database[SKILL_ID_CORE_ERUPTION] = (Skill){SKILL_ID_CORE_ERUPTION, ACTION_TYPE_BOOST, "丹元爆发", "Core Eruption", 'C', 0, 3, TYPE_BUFF, ATTR_NONE, 2.0f, 2, 0, TARGET_SELF, "<%s 碎丹求道，霎时气场狂涨！>", "<%s shattering the Core, his presence surged with terrifying might.>"};
     g_skill_database[SKILL_ID_BEETLE_SWARM] = (Skill){SKILL_ID_BEETLE_SWARM, ACTION_TYPE_BURST, "噬金虫群", "Gold Devouring Beetle Swarm", 'B', 2, 3, TYPE_BURST, ATTR_PHYSICAL, 1.0f, 3, 0.8f, TARGET_ENEMY, "<%s 放出噬金虫群，嗡鸣声中，一片金色虫云遮天蔽日般扑去！>", "<%s releases a swarm of Gold Devouring Beetles, a golden cloud that blots out the sky and engulfs the enemy!>"};
-    g_skill_database[SKILL_ID_ICE_FLAME] = (Skill){SKILL_ID_ICE_FLAME, ACTION_TYPE_TERMINATE, "乾蓝冰焰", "Dry Blue Ice Flame", 'I', 10, 3, TYPE_DEBUFF, ATTR_FIRE, 7.0f, 5, 0.95f, TARGET_ENEMY, "<%s 祭出乾蓝冰焰，一朵幽蓝冷火悄然印向对手，欲冻结其元神！>", "<%s summons the Dry Blue Ice Flame, a chilling blue fire that silently seeks to freeze the enemy's spirit!>"};
+    g_skill_database[SKILL_ID_ICE_FLAME] = (Skill){SKILL_ID_ICE_FLAME, ACTION_TYPE_TERMINATE, "乾蓝冰焰", "Dry Blue Ice Flame", 'I', 10, 3, TYPE_DEBUFF, ATTR_ICE, 7.0f, 5, 0.95f, TARGET_ENEMY, "<%s 祭出乾蓝冰焰，一朵幽蓝冷火悄然印向对手，欲冻结其元神！>", "<%s summons the Dry Blue Ice Flame, a chilling blue fire that silently seeks to freeze the enemy's spirit!>"};
 }
 
 // --- BLUEPRINT REFACTOR: The New Combat Resolution Engine ---
@@ -138,7 +138,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
 
     // --- 步骤 3: 前置检定 (闪避) ---
     // 只有特定类型的攻击可以被闪避
-    if (attacker_skill->type_id == TYPE_PIERCE || attacker_skill->type_id == TYPE_BURST || attacker_skill->type_id == TYPE_SMASH)
+    if (attacker_skill->type_id == TYPE_PIERCE || attacker_skill->type_id == TYPE_SLASH || attacker_skill->type_id == TYPE_SMASH || attacker_skill->type_id == TYPE_PROJECT)
     {
         if ((rand() % 100) < (defender->evade * 100.0f))
         {
@@ -146,6 +146,16 @@ void Oneway_Solution(Player *attacker, Player *defender)
             CHN_PRINT("\033[36m[%s 的 %s 被 %s 灵巧地闪避了！]\033[0m\n", attacker->name, attacker_skill->name_chn, defender->name);
             return; // 闪避成功，交互结束
         }
+    }
+
+    if (attacker_skill->type_id == TYPE_BURST)
+    {
+        int origin_burst_count = attacker->burst_count;
+        while (origin_burst_count-- > 0)
+            if ((rand() % 100) < (defender->evade * 100.0f))
+                attacker->burst_count--;
+        CHN_PRINT("[%s 被 %s 命中 %d 次!]\n", defender->name, attacker_skill->name_chn, attacker->burst_count);
+        ENG_PRINT("[%s was hit by %s %d time(s)!]\n", defender->name, attacker_skill->name_eng, attacker->burst_count);
     }
 
     // --- 步骤 4: 核心结算流程 ---
@@ -261,6 +271,8 @@ void Oneway_Solution(Player *attacker, Player *defender)
         CHN_PRINT("[%s 的攻击被反弹，受到了 %d 点伤害!]\n", attacker->name, (int)reflect_damage);
         ENG_PRINT("[%s's attack was reflected, taking %d damage!]\n", attacker->name, (int)reflect_damage);
     }
+
+    if(attacker_skill->skill_id == SKILL_ID_ICE_FLAME) defender->cursed += final_damage;
 }
 
 // --- Main Game Loop and Other Functions (with fixes) ---
@@ -348,11 +360,11 @@ int main(int argc, char *argv[])
             }
 
             // 只要是需要LLM思考的模式（6号或7号的特定周期），就提前生成Prompt
-            if (game.opponent_type == 6 && game.is_bridge_mode)
+            if (game.opponent_type == 7 && game.is_bridge_mode)
             { // “事无巨细”模式，每回合都提前生成
                 Build_Turn_Update_Prompt(&CPU, &YOU);
             }
-            else if (game.opponent_type == 7 && game.is_bridge_mode && (game.round_number % STRATEGIC_CYCLE == 0)) // “将帅分级”模式，在战略周期生成
+            else if (game.opponent_type == 8 && game.is_bridge_mode && (game.round_number % STRATEGIC_CYCLE == 0)) // “将帅分级”模式，在战略周期生成
             {
                 // a. 请求大元帅（LLM）进行战略决策
                 Request_Strategic_Decision(&CPU, &YOU, &game);
@@ -368,7 +380,7 @@ int main(int argc, char *argv[])
                 CPU_action(&YOU);
                 fflush(stdout); // 确保V2 AI的行动结果被立即发送
 
-                if (game.is_bridge_mode && game.opponent_type == 6) {
+                if (game.is_bridge_mode && game.opponent_type == 7) {
                     printf("##CMD##:GET_LLM_RESULT_FOR_AI_TURN\n");
                     fflush(stdout);
                 })
@@ -377,27 +389,30 @@ int main(int argc, char *argv[])
             switch (game.opponent_type)
             {
             case 0:
-                CPU_logic_V1A_Disruptor(&CPU, &YOU);
+                CPU_logic_V0_Random(&CPU, &YOU);
                 break;
             case 1:
-                CPU_logic_V1B_Berserker(&CPU, &YOU);
+                CPU_logic_V1A_Disruptor(&CPU, &YOU);
                 break;
             case 2:
-                CPU_logic_V1C_Turtle(&CPU, &YOU);
+                CPU_logic_V1B_Berserker(&CPU, &YOU);
                 break;
             case 3:
-                CPU_logic_V1D_Ascetic(&CPU, &YOU);
+                CPU_logic_V1C_Turtle(&CPU, &YOU);
                 break;
             case 4:
-                CPU_logic_V1E_Gambler(&CPU, &YOU);
+                CPU_logic_V1D_Ascetic(&CPU, &YOU);
                 break;
             case 5:
-                CPU_logic_V2A_Tuned(&CPU, &YOU, 0);
+                CPU_logic_V1E_Gambler(&CPU, &YOU);
                 break;
             case 6:
-                CPU_logic_LLM(&CPU, &YOU);
+                CPU_logic_V2A_Tuned(&CPU, &YOU, 0);
                 break;
             case 7:
+                CPU_logic_LLM(&CPU, &YOU);
+                break;
+            case 8:
                 switch (game.current_general_id)
                 {
                 case 0:
@@ -556,7 +571,7 @@ static void Resolve_Immediate_Effects(Player *player)
             break;
         case SKILL_ID_CORE_ERUPTION:
             player->enraged += 6;
-            player->HP -= 30;
+            player->HP -= max_HP[player->XIUWEI] * 3 / 10;
             break;
         }
         break;
@@ -567,13 +582,13 @@ static void Resolve_Immediate_Effects(Player *player)
         case SKILL_ID_HEAL:
             player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
             heal_amount = 2 * player->XIUWEI;
-            player->HP += heal_amount;
             break;
         case SKILL_ID_EVERGREEN_ART:
             player->healing = (player->XIUWEI + 1);
             heal_amount = 5 * player->XIUWEI;
             break;
         }
+        player->HP += heal_amount;
         ENG_PRINT("[%s healed for %d HP immediately!]\n", player->name, heal_amount);
         CHN_PRINT("[%s 立即恢复了 %d 点生命值！]\n", player->name, heal_amount);
         break;
@@ -581,19 +596,13 @@ static void Resolve_Immediate_Effects(Player *player)
     default:
         break;
     }
+
+    if (chosen_skill->skill_id == SKILL_ID_SWORD_PHANTOM) player->burst_count = 6;
 }
 // --- END REFACTOR ---
 
 // --- Tool Funcs that havs special use ---
 #pragma region tool_function
-
-void clear_buffer()
-{
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF)
-        ;
-}
-
 // 蓝图核心：一个绝对安全的工具函数，用于获取AI的可行行动列表
 // 它直接查询玩家实例，而不是依赖任何全局变量
 int get_affordable_actions(const Player *player, ActionType affordable_actions[])
@@ -685,6 +694,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
     player->burst_count = 0;
     player->healing = 0;
     player->enraged = 0;
+    player->cursed = 0;
     player->damage_received = 0;
     player->action_cost = 0;
     player->root = (rand() % (TOTAL_ROOT_TYPES - 1)) + 1;
@@ -732,10 +742,10 @@ int Trigger_Fate(Player *player)
         break;
     case FATE_Calamity:
     {
-        int dmg = player->YUAN * (1 + (rand() % 3)); // 受到 1-3 点伤害
+        int dmg = max_HP[player->XIUWEI] * (1 + (rand() % 3)) / 10; // 受到 1-3 点伤害
         player->HP -= dmg;
-        CHN_PRINT("[天道无常!] 一道微小的劫雷劈中了 %s, 造成了 %d 点伤害!\n", player->name, dmg);
-        ENG_PRINT("[Way of Heaven is Unpredictable!] A minor calamity tribulation strikes %s, dealing %d damage!\n", player->name, dmg);
+        CHN_PRINT("[天道无常!] 一道劫雷劈中了 %s, 造成了 %d 点伤害!\n", player->name, dmg);
+        ENG_PRINT("[Way of Heaven is Unpredictable!] A calamity tribulation strikes %s, dealing %d damage!\n", player->name, dmg);
 
         if (player->HP <= 0)
         {
@@ -776,43 +786,47 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
     // 2. 根据游戏模式确定并设置CPU的具体“人格”
     // --- BLUEPRINT REFACTOR: Unified Opponent Configuration ---
     // 1. 修正边界检查，使其包含LLM对手类型(6)
-    if (g_config.enemy_type >= 0 && g_config.enemy_type <= 7)
+    if (g_config.enemy_type >= 0 && g_config.enemy_type <= 8)
     {
         game->opponent_type = g_config.enemy_type;
     }
     else
     {
-        game->opponent_type = rand() % 5; // 如果配置无效，则随机选择一个普通对手
+        game->opponent_type = rand() % 5 + 1; // 如果配置无效，则随机选择一个普通对手
     }
 
     // 2. 在初始化时就正确设置LLM对手的名字
     switch (game->opponent_type)
     {
     case 0:
+        CHN(CPU->name = "混沌");
+        ENG(CPU->name = "Random");
+        break;
+    case 1:
         CHN(CPU->name = "破法者");
         ENG(CPU->name = "Disruptor");
         break;
-    case 1:
+    case 2:
         CHN(CPU->name = "狂战士");
         ENG(CPU->name = "Berserker");
         break;
-    case 2:
+    case 3:
         CHN(CPU->name = "神龟流");
         ENG(CPU->name = "Turtle");
         break;
-    case 3:
+    case 4:
         CHN(CPU->name = "苦修者");
         ENG(CPU->name = "Ascetic");
         break;
-    case 4:
+    case 5:
         CHN(CPU->name = "豪赌徒");
         ENG(CPU->name = "Gambler");
         break;
-    case 5:
+    case 6:
         CHN(CPU->name = "狂才");
         ENG(CPU->name = "Crazy Genius");
         break;
-    case 6: // “事无巨细”模式
+    case 7: // “事无巨细”模式
         CHN(CPU->name = "悟道者");
         ENG(CPU->name = "Enlightened One");
         if (game->is_bridge_mode)
@@ -822,7 +836,7 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
             Build_Per_Turn_Genesis_Prompt(); // <-- 调用新的开场白函数
         }
         break;
-    case 7: // “将帅分级”模式
+    case 8: // “将帅分级”模式
         CHN(CPU->name = "大元帅");
         ENG(CPU->name = "Grand Marshal");
         if (game->is_bridge_mode)
@@ -855,7 +869,6 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
 }
 
 #pragma region status_resolve
-
 // 模块 1: 处理行动消耗与状态重置
 static void Resolve_Action_Costs_And_Resets(Player *player)
 {
@@ -911,9 +924,19 @@ static void Resolve_Persistent_Effects(Player *player)
 
     // 闪避率衰减
     float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
+    base_evade += g_config.initial_evade;
     if (player->evade > base_evade)
     {
         player->evade -= 0.5f * (player->evade - base_evade);
+    }
+
+    if (player->cursed > 0)
+    {
+        player->damage_received += player->cursed;
+    }
+    else
+    {
+        player->cursed = 0;
     }
 }
 
@@ -944,6 +967,7 @@ static void Apply_Breakthrough_Rewards(Player *player)
     // 3. 重置动态状态
     player->enraged = 0;
     player->healing = 0;
+    player->cursed = 0;
 
     // 4. 应用灵根的突破奖励
     if (player->root == ROOT_Solid)
@@ -951,6 +975,7 @@ static void Apply_Breakthrough_Rewards(Player *player)
         player->HP *= 1.2f;
     }
     float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
+    base_evade += g_config.initial_evade;
     player->evade = base_evade; // 突破后闪避率直接刷新，而不是衰减
 
     // 5. 重新授予技能！通过调用唯一的技能更新模块
@@ -1346,7 +1371,7 @@ void CPU_logic_V0_Random(Player *cpu, const Player *opponent)
     }
 }
 
-// V1A - 干扰者 (Disruptor)
+// V1A - 破法者 (Disruptor)
 // 战术思想: 胜利不是通过击败对手，而是通过让他无法执行自己的战术来取得。
 void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 {
@@ -1366,7 +1391,7 @@ void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
     */
 
     // 优先级3：削弱对手 (假设已有 Warcry 技能)
-    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, ACTION_TYPE_BOOST))
+    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, ACTION_TYPE_BOOST) && cpu->XIUWEI != 3)
     {
         cpu->current_action_type = ACTION_TYPE_BOOST; // 在对手准备进攻时削弱他
         return;
