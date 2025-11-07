@@ -50,7 +50,7 @@
 #endif
 
 // AI训练开关
-#define AI_TRAINING_SET
+// #define AI_TRAINING_SET
 
 #define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
@@ -104,6 +104,7 @@ typedef enum
     ATTR_PHYSICAL,
     ATTR_FIRE,
     ATTR_WIND,
+    ATTR_WOOD,
     ATTR_THUNDER,
     ATTR_EARTH,
     ATTR_LIGHT,
@@ -147,6 +148,7 @@ typedef enum
     SKILL_ID_FIREBALL,
     SKILL_ID_ENERGY_SHIELD,
     SKILL_ID_WINDBLADE,
+    SKILL_ID_EVERGREEN_ART,
     SKILL_ID_CONCENTRATION,
     // 筑基
     SKILL_ID_FLAMEBLAST,
@@ -154,6 +156,11 @@ typedef enum
     SKILL_ID_GREATSWORD,
     SKILL_ID_COMMANDING_SWORDS,
     SKILL_ID_TERMINATE_THUNDER,
+    // 结丹
+    SKILL_ID_SWORD_PHANTOM,
+    SKILL_ID_CORE_ERUPTION,
+    SKILL_ID_BEETLE_SWARM,
+    SKILL_ID_ICE_FLAME,
     // ... 未来所有新技能都在此添加唯一ID
     TOTAL_SKILLS // 技能数据总数
 } SkillID;

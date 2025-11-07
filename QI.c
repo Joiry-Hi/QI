@@ -98,6 +98,7 @@ void Initialize_Databases()
 
     g_skill_database[SKILL_ID_FIREBALL] = (Skill){SKILL_ID_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PROJECT, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY, "<%s 掌心凝聚出一颗灼热的火球!>", "<%s conjures and hurls a searing fireball!>"};
     g_skill_database[SKILL_ID_ENERGY_SHIELD] = (Skill){SKILL_ID_ENERGY_SHIELD, ACTION_TYPE_DEFEND, "灵力盾", "Energy Shield", 'D', 2, 1, TYPE_SHIELD, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 以灵力在身前构筑了一面无形的护盾!>", "<%s summons a shimmering shield of pure energy!>"};
+    g_skill_database[SKILL_ID_EVERGREEN_ART] = (Skill){SKILL_ID_EVERGREEN_ART, ACTION_TYPE_HEAL, "长春功", "Evergreen Art", 'H', 3, 1, TYPE_HEAL, ATTR_WOOD, 2.5f, 3, 1.0f, TARGET_SELF, "<%s 运转长春功，周身泛起绿色荧光，生命力缓缓恢复。>", "<%s channels the Evergreen Art, glowing with a green light as life force recovers.>"};
     g_skill_database[SKILL_ID_CONCENTRATION] = (Skill){SKILL_ID_CONCENTRATION, ACTION_TYPE_BOOST, "凝神", "Get Focused", 'C', 3, 1, TYPE_BUFF, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 凝气入体，聚精会神>", "<%s saves all his spirits for next move>"};
     g_skill_database[SKILL_ID_WINDBLADE] = (Skill){SKILL_ID_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY, "<%s 挥手间，数道锋利的风刃破空而去!>", "<%s unleashes a flurry of razor-sharp wind blades!>"};
 
@@ -106,6 +107,11 @@ void Initialize_Databases()
     g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_EARTH, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
     g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "灵剑", "Soul Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 1.5f, 0, 0, TARGET_ENEMY, "<%s 轻喝一声：“剑来！”，无数飞剑应声而至!>", "<%s utters a single command: \"Swords, arise!\", and countless blades answer the call!>"};
     g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
+
+    g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_RANGED, "剑影分光术", "Sword Phantom Art", 'R', 6, 3, TYPE_BURST, ATTR_WIND, 3.0f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
+    g_skill_database[SKILL_ID_CORE_ERUPTION] = (Skill){SKILL_ID_CORE_ERUPTION, ACTION_TYPE_BOOST, "丹元爆发", "Core Eruption", 'C', 6, 3, TYPE_BUFF, ATTR_NONE, 2.0f, 2, 0, TARGET_SELF, "<%s 碎丹求道，霎时气场狂涨！>", "<%s shattering the Core, his presence surged with terrifying might.>"};
+    g_skill_database[SKILL_ID_BEETLE_SWARM] = (Skill){SKILL_ID_BEETLE_SWARM, ACTION_TYPE_BURST, "噬金虫群", "Gold Devouring Beetle Swarm", 'B', 2, 3, TYPE_BURST, ATTR_PHYSICAL, 1.0f, 3, 0.8f, TARGET_ENEMY, "<%s 放出噬金虫群，嗡鸣声中，一片金色虫云遮天蔽日般扑去！>", "<%s releases a swarm of Gold Devouring Beetles, a golden cloud that blots out the sky and engulfs the enemy!>"};
+    g_skill_database[SKILL_ID_ICE_FLAME] = (Skill){SKILL_ID_ICE_FLAME, ACTION_TYPE_TERMINATE, "乾蓝冰焰", "Dry Blue Ice Flame", 'I', 10, 3, TYPE_DEBUFF, ATTR_FIRE, 7.0f, 5, 0.95f, TARGET_ENEMY, "<%s 祭出乾蓝冰焰，一朵幽蓝冷火悄然印向对手，欲冻结其元神！>", "<%s summons the Dry Blue Ice Flame, a chilling blue fire that silently seeks to freeze the enemy's spirit!>"};
 }
 
 // --- BLUEPRINT REFACTOR: The New Combat Resolution Engine ---
@@ -137,7 +143,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
         if ((rand() % 100) < (defender->evade * 100.0f))
         {
             ENG_PRINT("\033[36m[%s's %s was gracefully evaded by %s!]\033[0m\n", attacker->name, attacker_skill->name_eng, defender->name);
-            CHN_PRINT("\033[36m[%s的%s被%s灵巧地闪避了！]\033[0m\n", attacker->name, attacker_skill->name_chn, defender->name);
+            CHN_PRINT("\033[36m[%s 的 %s 被 %s 灵巧地闪避了！]\033[0m\n", attacker->name, attacker_skill->name_chn, defender->name);
             return; // 闪避成功，交互结束
         }
     }
@@ -227,7 +233,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
     // 如果防御方的技能不是防御性的 (例如，他也在攻击或集气)
     default:
         final_damage = base_damage;
-        CHN_PRINT("[%s 的 %s 击中了正在 %s 的 %s!]\n", attacker->name, attacker_skill->name_chn, defender_skill->name_chn, defender->name);
+        CHN_PRINT("[%s 的 %s 击中了正在发动 %s 的 %s!]\n", attacker->name, attacker_skill->name_chn, defender_skill->name_chn, defender->name);
         ENG_PRINT("[%s's %s hits %s who is using %s!]\n", attacker->name, attacker_skill->name_eng, defender_skill->name_chn, defender->name);
         break;
     }
@@ -491,6 +497,88 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// --- BLUEPRINT REFACTOR: Centralized Immediate Effect Resolution ---
+// 这个函数是处理所有“施法时”即时效果的唯一模块
+static void Resolve_Immediate_Effects(Player *player)
+{
+    // 如果玩家未选择任何行动，则直接返回
+    if (player->current_action_type == ACTION_TYPE_NONE)
+    {
+        return;
+    }
+
+    // 从玩家自己的“技能书”中，获取他当前使用的最高阶技能
+    const Skill *chosen_skill = &player->learned_skills[player->current_action_type];
+
+    // --- 核心逻辑：合并后的通用效果结算 ---
+    switch (player->current_action_type)
+    {
+    case ACTION_TYPE_GAIN_QI:
+        player->QI += player->gain_combo;
+        CHN_PRINT("%s 集了 %d 点气! 它的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
+        ENG_PRINT("%s gained %d QI! Its QI is now %d.\n", player->name, player->gain_combo, player->QI);
+        break;
+    case ACTION_TYPE_BURST:
+    {
+        int burst_cost_per_hit = chosen_skill->cost;
+        player->burst_count = player->QI / burst_cost_per_hit;
+        player->action_cost = player->burst_count * burst_cost_per_hit;
+        switch (chosen_skill->skill_id)
+        {
+        case SKILL_ID_WINDBLADE:
+            CHN_PRINT("<%s 已形成 %d 把风刃!>\n", player->name, player->burst_count);
+            ENG_PRINT("<%s formed %d windblade(s)!>\n", player->name, player->burst_count);
+            break;
+        case SKILL_ID_COMMANDING_SWORDS:
+            CHN_PRINT("<%s 唤来 %d 把灵剑!>\n", player->name, player->burst_count);
+            ENG_PRINT("<%s called %d Soul sword(s)!>\n", player->name, player->burst_count);
+            break;
+        case SKILL_ID_BEETLE_SWARM:
+            CHN_PRINT("<%s 操控起 %d 只噬金虫!>\n", player->name, player->burst_count);
+            ENG_PRINT("<%s controlled %d devour metal beetle(s)!>\n", player->name, player->burst_count);
+            break;
+        default:
+            CHN_PRINT("<%s 已形成 %d 把 %s!>\n", player->name, player->burst_count, chosen_skill->name_chn);
+            ENG_PRINT("<%s formed %d %s(s)!>\n", player->name, player->burst_count, chosen_skill->name_eng);
+            break;
+        }
+    }
+    break;
+    case ACTION_TYPE_BOOST:
+        switch (chosen_skill->skill_id)
+        {
+        case SKILL_ID_WARCRY:
+            player->enraged += 3;
+            break;
+        case SKILL_ID_CONCENTRATION:
+            player->enraged += 2;
+            player->evade = 0.75f;
+            break;
+        case SKILL_ID_CORE_ERUPTION:
+            player->enraged += 6;
+            player->HP -= 30;
+            break;
+        }
+        break;
+    case ACTION_TYPE_HEAL:
+        switch (chosen_skill->skill_id)
+        {
+        case SKILL_ID_HEAL:
+            player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
+            break;
+        case SKILL_ID_EVERGREEN_ART:
+            player->healing = (player->XIUWEI + 1);
+            player->HP += player->XIUWEI;
+            break;
+        }
+
+    // 其他技能没有需要在这里预处理的逻辑
+    default:
+        break;
+    }
+}
+// --- END REFACTOR ---
+
 // --- Tool Funcs that havs special use ---
 #pragma region tool_function
 
@@ -541,7 +629,8 @@ int InterruptHealing(const Player *attacker, Player *target)
 {
     if (target->healing > 0)
     {
-        printf("[%s's healing was interrupted by %s's attack!]\n", target->name, attacker->name);
+        ENG_PRINT("[%s's healing was interrupted by %s's attack!]\n", target->name, attacker->name);
+        CHN_PRINT("[%s 的恢复被 %s 的攻击打断了!]\n", target->name, attacker->name);
         target->healing = 0;
         return 1;
     }
@@ -980,107 +1069,54 @@ void Player_action(Game game, Player *YOU)
         for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
         {
             const Skill *skill = &YOU->learned_skills[i];
-            // --- 核心修正: 检查 skill_id 是否不为 ACTION_TYPE_NONE ---
             if (skill->skill_id != SKILL_ID_NONE && YOU->QI >= skill->cost)
             {
-                CHN_PRINT("[%c]: %s (%d)  ", skill->hotkey, skill->name_chn, skill->cost);
-                ENG_PRINT("[%c]: %s (%d)  ", skill->hotkey, skill->name_eng, skill->cost);
+                CHN_PRINT("[%c] %s(%d)  ", skill->hotkey, skill->name_chn, skill->cost);
+                ENG_PRINT("[%c] %s(%d)  ", skill->hotkey, skill->name_eng, skill->cost);
             }
         }
         printf("\n");
 
-        // a. 发送“取回结果”信号
+        // (为兼容性保留) 发送“取回结果”信号
         if (game.is_bridge_mode)
         {
             printf("##CMD##:INPUT_REQUIRED\n");
             fflush(stdout);
         }
 
-        char buffer[16];   // 一个小缓冲区来接收输入行
-        char choice = ' '; // 默认值
-
-        // 使用fgets从标准输入读取一行
+        char buffer[16];
+        char choice = ' ';
         if (fgets(buffer, sizeof(buffer), stdin) != NULL)
         {
-            // 安全地取出第一个非空白字符作为选择
             sscanf(buffer, " %c", &choice);
         }
-
-        // clear_buffer(); // fgets已经消费了换行符，不再需要这个
         choice = toupper(choice);
 
-        // 3. 验证输入并设置行动 (通过匹配hotkey)
+        // 2. 验证输入并设置行动
         int action_found = 0;
         for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
         {
             const Skill *skill = &YOU->learned_skills[i];
-            // 检查是否学习、QI足够，并且快捷键匹配
-            if (skill->skill_id >= 0 && YOU->QI >= skill->cost && choice == skill->hotkey)
+            if (skill->skill_id != SKILL_ID_NONE && YOU->QI >= skill->cost && choice == skill->hotkey)
             {
+                // --- BLUEPRINT REFACTOR: Purified Logic Flow ---
+
+                // a. 设置玩家的行动意图和基础消耗
                 YOU->current_action_type = skill->action_type;
                 YOU->action_cost = skill->cost;
 
-                // --- 核心修正: 使用数据库中的提示词 ---
+                // b. 打印唯一的、数据驱动的“行动宣言”
                 printf("\033[34m");
                 CHN_PRINT(skill->prompt_chn, YOU->name);
                 ENG_PRINT(skill->prompt_eng, YOU->name);
-                printf("\n"); // 确保换行
+                printf("\n");
 
-                // printf("\033[34m"); // 蓝色
-                // CHN_PRINT("<你选择了 %s!>\n", skill->name_chn);
-                // ENG_PRINT("<You chose %s!>\n", skill->name_eng);
-
-                // 特殊逻辑处理
-                switch (YOU->current_action_type)
-                {
-                case SKILL_ID_GAIN_QI:
-                    YOU->QI += YOU->gain_combo;
-                    CHN_PRINT("你集气成功，获得%d点气力！你的气力已变为%d。\n", YOU->gain_combo, YOU->QI);
-                    ENG_PRINT("You gained %d QI! Your QI is now %d.\n", YOU->gain_combo, YOU->QI);
-                    break;
-                case ACTION_TYPE_BURST:
-                {
-                    int burst_cost_per_hit = skill->cost;
-                    YOU->burst_count = YOU->QI / burst_cost_per_hit;
-                    YOU->action_cost = YOU->burst_count * burst_cost_per_hit;
-                    switch (skill->skill_id)
-                    {
-                    case SKILL_ID_WINDBLADE:
-                        CHN_PRINT("<你已形成 %d 把风刃!>\n", YOU->burst_count);
-                        ENG_PRINT("<You formed %d windblade(s)!>\n", YOU->burst_count);
-                        break;
-                    case SKILL_ID_COMMANDING_SWORDS:
-                        CHN_PRINT("<你唤来 %d 把灵剑!>\n", YOU->burst_count);
-                        ENG_PRINT("<You called %d Soul sword(s)!>\n", YOU->burst_count);
-                        break;
-                    default:
-                        CHN_PRINT("<你已形成 %d 把 %s!>\n", YOU->burst_count, skill->name_chn);
-                        ENG_PRINT("<You formed %d %s(s)!>\n", YOU->burst_count, skill->name_eng);
-                        break;
-                    }
-                    break;
-                }
-                case ACTION_TYPE_BOOST:
-                    switch (skill->skill_id)
-                    {
-                    case SKILL_ID_WARCRY:
-                        YOU->enraged += 3;
-                        break;
-                    case SKILL_ID_CONCENTRATION:
-                        YOU->enraged += 2;
-                        YOU->evade = 0.75f;
-                        break;
-                    }
-                    break;
-                case ACTION_TYPE_HEAL:
-                    YOU->healing = (YOU->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
-                    break;
-                default:
-                    break;
-                }
+                // c. 调用统一的即时效果模块，处理所有后续逻辑和打印
+                Resolve_Immediate_Effects(YOU);
 
                 action_found = 1;
-                break; // 找到后跳出循环
+                break;
+                // --- END REFACTOR ---
             }
         }
 
@@ -1094,79 +1130,31 @@ void Player_action(Game game, Player *YOU)
 
 void CPU_action(Player *player)
 {
-    // 防火墙：如果AI没有做出任何决定，直接返回
     if (player->current_action_type == ACTION_TYPE_NONE)
+    {
         return;
+    }
 
-    // 从数据库中获取AI选择的技能的静态数据
+    // 从玩家自己的“技能书”中获取正确的、当前最高阶的技能
     const Skill *chosen_skill = &player->learned_skills[player->current_action_type];
 
-    // 设置通用数据
+    // 设置基础消耗
     player->action_cost = chosen_skill->cost;
 
-    printf("\033[91m"); // AI行动统一用红色
+    // --- BLUEPRINT REFACTOR: Purified Logic Flow ---
 
-    // --- 核心修正: 使用数据库中的提示词 ---
+    // 1. 打印唯一的、数据驱动的“行动宣言”
+    printf("\033[91m"); // AI行动统一用红色
     CHN_PRINT(chosen_skill->prompt_chn, player->name);
     ENG_PRINT(chosen_skill->prompt_eng, player->name);
     printf("\n");
 
-    // // 打印AI的选择，完全由数据驱动
-    // CHN_PRINT("<%s 选择了 %s!>\n", player->name, chosen_skill->name_chn);
-    // ENG_PRINT("<%s chose to use %s!>\n", player->name, chosen_skill->name_eng);
+    // 2. 调用统一的即时效果模块，处理所有后续逻辑和打印
+    Resolve_Immediate_Effects(player);
 
-    // --- 特殊逻辑前置处理 ---
-    // 和Player_action类似，处理一些即时或需要预计算的效果
-    switch (player->current_action_type)
-    {
-    case ACTION_TYPE_GAIN_QI:
-        player->QI += player->gain_combo;
-        CHN_PRINT("%s 集了 %d 点气! 它的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
-        ENG_PRINT("%s gained %d QI! Its QI is now %d.\n", player->name, player->gain_combo, player->QI);
-        break;
-    case ACTION_TYPE_BURST:
-    {
-        int burst_cost_per_hit = chosen_skill->cost;
-        player->burst_count = player->QI / burst_cost_per_hit;
-        player->action_cost = player->burst_count * burst_cost_per_hit;
-        switch (chosen_skill->skill_id)
-        {
-        case SKILL_ID_WINDBLADE:
-            CHN_PRINT("<%s 已形成 %d 把风刃!>\n", player->name, player->burst_count);
-            ENG_PRINT("<%s formed %d windblade(s)!>\n", player->name, player->burst_count);
-            break;
-        case SKILL_ID_COMMANDING_SWORDS:
-            CHN_PRINT("<%s 唤来 %d 把灵剑!>\n", player->name, player->burst_count);
-            ENG_PRINT("<%s called %d Soul sword(s)!>\n", player->name, player->burst_count);
-            break;
-        default:
-            CHN_PRINT("<%s 已形成 %d 把 %s!>\n", player->name, player->burst_count, chosen_skill->name_chn);
-            ENG_PRINT("<%s formed %d %s(s)!>\n", player->name, player->burst_count, chosen_skill->name_eng);
-            break;
-        }
-    }
-    break;
-    case ACTION_TYPE_BOOST:
-        switch (chosen_skill->skill_id)
-        {
-        case SKILL_ID_WARCRY:
-            player->enraged += 3;
-            break;
-        case SKILL_ID_CONCENTRATION:
-            player->enraged += 2;
-            player->evade = 0.75f;
-            break;
-        }
-        break;
-    case ACTION_TYPE_HEAL:
-        player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
-        break;
-    // 其他技能没有需要在这里预处理的逻辑
-    default:
-        break;
-    }
-
+    // 3. 恢复默认颜色
     printf("\033[0m");
+    // --- END REFACTOR ---
 }
 
 void Action_resolve(Player *YOU, Player *CPU) // 互动解算
