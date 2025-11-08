@@ -111,6 +111,7 @@ typedef enum
     ATTR_EARTH,
     ATTR_LIGHT,
     ATTR_DARK,
+    ATTR_BLOOD,
     ATTR_SPIRITUAL
 } AttributeID;
 
@@ -160,9 +161,13 @@ typedef enum
     SKILL_ID_TERMINATE_THUNDER,
     // 结丹
     SKILL_ID_SWORD_PHANTOM,
+    SKILL_ID_CORE_RESTORATION,
     SKILL_ID_CORE_ERUPTION,
+    SKILL_ID_BLOOD_DEVIL_SLASH,
     SKILL_ID_BEETLE_SWARM,
     SKILL_ID_ICE_FLAME,
+    // 元婴
+    SKILL_ID_ESSENCE_PLUNDER,
     // ... 未来所有新技能都在此添加唯一ID
     TOTAL_SKILLS // 技能数据总数
 } SkillID;
@@ -201,7 +206,7 @@ typedef struct Skill_s
     TypeID type_id;           // 微观物理/效果分类
     AttributeID attribute_id; // 元素属性
     float base_power;
-    int effect_duration;
+    int effect_strength;
     float effect_chance;
     TargetType target_type;
     const char *prompt_chn; // 中文提示词 (包含一个 %s 用于玩家名)
@@ -214,7 +219,7 @@ typedef struct Player_s
     int HP, QI, ATK, YUAN, XIUWEI;
     ActionType current_action_type;           // 玩家本回合的“意图”是哪个宏观类别
     Skill learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
-    int gain_combo, burst_count, healing, enraged, cursed;
+    int gain_combo, burst_count, healing, enraged, bleeding, cursed;
     float evade;
     SpiritualRootID root;
     int damage_received, action_cost;
@@ -279,6 +284,7 @@ extern char *Realm[10];
 extern int max_HP[10], max_QI[10], Yuan[10];
 extern const char *Eng_Root_Names[TOTAL_ROOT_TYPES];
 extern const char *CHN_Root_Names[TOTAL_ROOT_TYPES];
+
 #pragma endregion Global_Variable_Declarations
 
 #pragma region Function_Prototypes

@@ -18,7 +18,7 @@ GameConfig g_config = {
 char *Realm[10] = {"凡人", "炼气", "筑基", "结丹", "元婴", "化神", "炼虚", "合体", "大乘", "飞升"};
 char *Eng_Realm[10] = {"Mortal", "Qi Refining", "Foundation", "Core Formation", "Nascent Soul", "Spirit Severing", "Void Refinement", "Unity", "Great Ascension", "Ascension"};
 int max_HP[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
-int max_QI[10] = {10, 20, 50, 100, 200, 1000, 5000, 10000, 50000, 100000};
+int max_QI[10] = {10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120};
 int Yuan[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 
 const char *GENERAL_NAMES[] = {
@@ -98,20 +98,24 @@ void Initialize_Databases()
 
     g_skill_database[SKILL_ID_FIREBALL] = (Skill){SKILL_ID_FIREBALL, ACTION_TYPE_RANGED, "火球", "Fireball", 'R', 2, 1, TYPE_PROJECT, ATTR_FIRE, 1.0f, 0, 0, TARGET_ENEMY, "<%s 掌心凝聚出一颗灼热的火球!>", "<%s conjures and hurls a searing fireball!>"};
     g_skill_database[SKILL_ID_ENERGY_SHIELD] = (Skill){SKILL_ID_ENERGY_SHIELD, ACTION_TYPE_DEFEND, "灵力盾", "Energy Shield", 'D', 2, 1, TYPE_SHIELD, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 以灵力在身前构筑了一面无形的护盾!>", "<%s summons a shimmering shield of pure energy!>"};
-    g_skill_database[SKILL_ID_EVERGREEN_ART] = (Skill){SKILL_ID_EVERGREEN_ART, ACTION_TYPE_HEAL, "长春功", "Evergreen Art", 'H', 3, 1, TYPE_HEAL, ATTR_WOOD, 2.5f, 3, 1.0f, TARGET_SELF, "<%s 运转长春功，周身泛起绿色荧光，生命力缓缓恢复。>", "<%s channels the Evergreen Art, glowing with a green light as life force recovers.>"};
+    g_skill_database[SKILL_ID_EVERGREEN_ART] = (Skill){SKILL_ID_EVERGREEN_ART, ACTION_TYPE_HEAL, "长春功", "Evergreen Art", 'H', 4, 1, TYPE_HEAL, ATTR_WOOD, 2.5f, 3, 1.0f, TARGET_SELF, "<%s 运转长春功，周身泛起绿色荧光，生命力缓缓恢复。>", "<%s channels the Evergreen Art, glowing with a green light as life force recovers.>"};
     g_skill_database[SKILL_ID_CONCENTRATION] = (Skill){SKILL_ID_CONCENTRATION, ACTION_TYPE_BOOST, "凝神", "Get Focused", 'C', 3, 1, TYPE_BUFF, ATTR_SPIRITUAL, 1.0f, 0, 0, TARGET_SELF, "<%s 凝气入体，聚精会神>", "<%s saves all his spirits for next move>"};
     g_skill_database[SKILL_ID_WINDBLADE] = (Skill){SKILL_ID_WINDBLADE, ACTION_TYPE_BURST, "风刃", "Wind Blade", 'B', 3, 1, TYPE_BURST, ATTR_WIND, 1.0f, 0, 0, TARGET_ENEMY, "<%s 挥手间，数道锋利的风刃破空而去!>", "<%s unleashes a flurry of razor-sharp wind blades!>"};
 
-    g_skill_database[SKILL_ID_FLAMEBLAST] = (Skill){SKILL_ID_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 2, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY, "<%s 吟唱片刻，一颗毁灭性的炎爆弹呼啸而出!>", "<%s unleashes a devastating blast of fire and flame!>"};
+    g_skill_database[SKILL_ID_FLAMEBLAST] = (Skill){SKILL_ID_FLAMEBLAST, ACTION_TYPE_RANGED, "炎爆弹", "Flame Blast", 'R', 3, 2, TYPE_BLAST, ATTR_FIRE, 2.0f, 0, 0, TARGET_ENEMY, "<%s 吟唱片刻，一颗毁灭性的炎爆弹呼啸而出!>", "<%s unleashes a devastating blast of fire and flame!>"};
     g_skill_database[SKILL_ID_GOLD_LIGHT_WARDING] = (Skill){SKILL_ID_GOLD_LIGHT_WARDING, ACTION_TYPE_DEFEND, "金光护体", "Gold Light Warding", 'D', 4, 2, TYPE_FORCEFIELD, ATTR_LIGHT, 1.0f, 0, 0, TARGET_SELF, "<%s 周身金光大盛，形成了坚不可摧的护体神功!>", "<%s is enveloped in a brilliant ward of golden light!>"};
-    g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 4, 2, TYPE_SMASH, ATTR_METAL, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
+    g_skill_database[SKILL_ID_GREATSWORD] = (Skill){SKILL_ID_GREATSWORD, ACTION_TYPE_SMITE, "巨剑术", "Greatsword Mastery", 'S', 6, 2, TYPE_SMASH, ATTR_METAL, 4.0f, 0, 0, TARGET_ENEMY, "<%s 凝聚出一柄巨剑，携万钧之势劈下!>", "<%s forms a Greatsword and smites with immense force!>"};
     g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "灵剑", "Soul Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 1.5f, 0, 0, TARGET_ENEMY, "<%s 轻喝一声：“剑来！”，无数飞剑应声而至!>", "<%s utters a single command: \"Swords, arise!\", and countless blades answer the call!>"};
-    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 6, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
+    g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 10, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
 
     g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_RANGED, "剑影分光术", "Sword Phantom Art", 'R', 6, 3, TYPE_BURST, ATTR_WIND, 0.5f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
+    g_skill_database[SKILL_ID_CORE_RESTORATION] = (Skill){SKILL_ID_CORE_RESTORATION, ACTION_TYPE_HEAL, "丹元归一", "Golden Core Restoration", 'H', 10, 3, TYPE_HEAL, ATTR_LIGHT, 6.5f, 2, 0.5f, TARGET_SELF, "<%s 催动金丹，精纯的丹元之力流转百骸，迅速修复着受损的经脉。>", "<%s activates the Golden Core, its pure essence flowing through the meridians, rapidly mending the damage.>"};
     g_skill_database[SKILL_ID_CORE_ERUPTION] = (Skill){SKILL_ID_CORE_ERUPTION, ACTION_TYPE_BOOST, "丹元爆发", "Core Eruption", 'C', 0, 3, TYPE_BUFF, ATTR_NONE, 2.0f, 2, 0, TARGET_SELF, "<%s 碎丹求道，霎时气场狂涨！>", "<%s shattering the Core, his presence surged with terrifying might.>"};
-    g_skill_database[SKILL_ID_BEETLE_SWARM] = (Skill){SKILL_ID_BEETLE_SWARM, ACTION_TYPE_BURST, "噬金虫群", "Gold Devouring Beetle Swarm", 'B', 2, 3, TYPE_BURST, ATTR_PHYSICAL, 1.0f, 3, 0.8f, TARGET_ENEMY, "<%s 放出噬金虫群，嗡鸣声中，一片金色虫云遮天蔽日般扑去！>", "<%s releases a swarm of Gold Devouring Beetles, a golden cloud that blots out the sky and engulfs the enemy!>"};
-    g_skill_database[SKILL_ID_ICE_FLAME] = (Skill){SKILL_ID_ICE_FLAME, ACTION_TYPE_TERMINATE, "乾蓝冰焰", "Dry Blue Ice Flame", 'I', 10, 3, TYPE_DEBUFF, ATTR_ICE, 7.0f, 5, 0.95f, TARGET_ENEMY, "<%s 祭出乾蓝冰焰，一朵幽蓝冷火悄然印向对手，欲冻结其元神！>", "<%s summons the Dry Blue Ice Flame, a chilling blue fire that silently seeks to freeze the enemy's spirit!>"};
+    g_skill_database[SKILL_ID_BLOOD_DEVIL_SLASH] = (Skill){SKILL_ID_BLOOD_DEVIL_SLASH, ACTION_TYPE_SMITE, "血魔斩", "Blood-Devil Slash", 'X', 12, 3, TYPE_SLASH, ATTR_BLOOD, 10.0f, 3, 0.4f, TARGET_ENEMY, "<%s 催动魔功，一道血色斩击裹挟着无尽凶煞之气，当头劈下！>", "<%s channels demonic power, unleashing a blood-colored slash filled with baleful energy!>"};
+    g_skill_database[SKILL_ID_BEETLE_SWARM] = (Skill){SKILL_ID_BEETLE_SWARM, ACTION_TYPE_BURST, "噬金虫群", "Gold Devouring Beetle Swarm", 'B', 3, 3, TYPE_BURST, ATTR_PHYSICAL, 1.0f, 3, 0.8f, TARGET_ENEMY, "<%s 放出噬金虫群，嗡鸣声中，一片金色虫云遮天蔽日般扑去！>", "<%s releases a swarm of Gold Devouring Beetles, a golden cloud that blots out the sky and engulfs the enemy!>"};
+    g_skill_database[SKILL_ID_ICE_FLAME] = (Skill){SKILL_ID_ICE_FLAME, ACTION_TYPE_TERMINATE, "乾蓝冰焰", "Dry Blue Ice Flame", 'I', 20, 3, TYPE_DEBUFF, ATTR_ICE, 3.0f, 5, 0.95f, TARGET_ENEMY, "<%s 祭出乾蓝冰焰，一朵幽蓝冷火悄然印向对手，欲冻结其元神！>", "<%s summons the Dry Blue Ice Flame, a chilling blue fire that silently seeks to freeze the enemy's spirit!>"};
+
+    g_skill_database[SKILL_ID_ESSENCE_PLUNDER] = (Skill){SKILL_ID_ESSENCE_PLUNDER, ACTION_TYPE_BOOST, "夺元诀", "Essence Plundering Art", 'C', 20, 4, TYPE_DEBUFF, ATTR_DARK, 1.5f, 6, 0, TARGET_ENEMY, "<%s 运起诡异步法，掌心产生一股吸力，强行夺取对手正在汇聚的真元！>", "<%s uses an uncanny art, creating a vortex in their palm to forcibly plunder the opponent's gathering essence!>"};
 }
 
 // --- BLUEPRINT REFACTOR: The New Combat Resolution Engine ---
@@ -142,8 +146,8 @@ void Oneway_Solution(Player *attacker, Player *defender)
     {
         if ((rand() % 100) < (defender->evade * 100.0f))
         {
-            ENG_PRINT("\033[36m[%s's %s was gracefully evaded by %s!]\033[0m\n", attacker->name, attacker_skill->name_eng, defender->name);
-            CHN_PRINT("\033[36m[%s 的 %s 被 %s 灵巧地闪避了！]\033[0m\n", attacker->name, attacker_skill->name_chn, defender->name);
+            ENG_PRINT("\033[36m[%s's %s was gracefully evaded by %s!]\n", attacker->name, attacker_skill->name_eng, defender->name);
+            CHN_PRINT("\033[36m[%s 的 %s 被 %s 灵巧地闪避了！]\n", attacker->name, attacker_skill->name_chn, defender->name);
             return; // 闪避成功，交互结束
         }
     }
@@ -239,7 +243,6 @@ void Oneway_Solution(Player *attacker, Player *defender)
         }
         break;
 
-    // --- 默认情况 ---
     // 如果防御方的技能不是防御性的 (例如，他也在攻击或集气)
     default:
         final_damage = base_damage;
@@ -259,7 +262,42 @@ void Oneway_Solution(Player *attacker, Player *defender)
         final_damage *= 0.8f; // 厚土灵根使用护盾技能时，减伤效果更强
     }
 
-    // --- 步骤 6: 应用最终伤害 ---
+    // --- 步骤 6: 根据技能属性施加效果 ---
+    int QI_stolen;
+    switch (attacker_skill->attribute_id)
+    {
+    case ATTR_BLOOD:
+        defender->bleeding += attacker_skill->effect_strength;
+        attacker->HP += final_damage / 10;
+        break;
+    case ATTR_DARK:
+        QI_stolen = (defender->QI >= attacker_skill->effect_strength) ? attacker_skill->effect_strength : defender->QI;
+        defender->QI -= QI_stolen;
+        break;
+    default:
+        break;
+    }
+
+    switch (attacker_skill->skill_id)
+    {
+    case SKILL_ID_ICE_FLAME:
+        defender->cursed += final_damage;
+        break;
+    case SKILL_ID_ESSENCE_PLUNDER:
+        QI_stolen = defender->QI / 4;
+        if (defender_skill->action_type == ACTION_TYPE_GAIN_QI)
+        {
+            defender->QI -= QI_stolen;
+            attacker->QI += QI_stolen;
+        }
+        CHN_PRINT("[%s 夺取了 %s 的 %d 点气力!]\n", attacker->name, defender->name, QI_stolen);
+        ENG_PRINT("[%s had plundered %s's %d point(s) of QI essence!]\n", attacker->name, defender->name, QI_stolen);
+        break;
+    default:
+        break;
+    }
+
+    // --- 步骤 7: 应用最终伤害 ---
     if (final_damage > 0)
     {
         defender->damage_received += final_damage;
@@ -271,8 +309,6 @@ void Oneway_Solution(Player *attacker, Player *defender)
         CHN_PRINT("[%s 的攻击被反弹，受到了 %d 点伤害!]\n", attacker->name, (int)reflect_damage);
         ENG_PRINT("[%s's attack was reflected, taking %d damage!]\n", attacker->name, (int)reflect_damage);
     }
-
-    if(attacker_skill->skill_id == SKILL_ID_ICE_FLAME) defender->cursed += final_damage;
 }
 
 // --- Main Game Loop and Other Functions (with fixes) ---
@@ -530,7 +566,7 @@ static void Resolve_Immediate_Effects(Player *player)
     {
     case ACTION_TYPE_GAIN_QI:
         player->QI += player->gain_combo;
-        CHN_PRINT("%s 集了 %d 点气! 它的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
+        CHN_PRINT("%s 集了 %d 点气! 他的气力现在为 %d.\n", player->name, player->gain_combo, player->QI);
         ENG_PRINT("%s gained %d QI! Its QI is now %d.\n", player->name, player->gain_combo, player->QI);
         break;
     case ACTION_TYPE_BURST:
@@ -581,11 +617,17 @@ static void Resolve_Immediate_Effects(Player *player)
         {
         case SKILL_ID_HEAL:
             player->healing = (player->XIUWEI + 1); // 治疗效果依然和境界有关，可以后续数据化
-            heal_amount = 2 * player->XIUWEI;
+            heal_amount = 2 * Yuan[player->XIUWEI];
             break;
         case SKILL_ID_EVERGREEN_ART:
             player->healing = (player->XIUWEI + 1);
-            heal_amount = 5 * player->XIUWEI;
+            heal_amount = 5 * Yuan[player->XIUWEI];
+            player->cursed -= Yuan[player->XIUWEI];
+            break;
+        case SKILL_ID_CORE_RESTORATION:
+            player->healing = (player->XIUWEI + 1);
+            heal_amount = 6 * Yuan[player->XIUWEI];
+            player->cursed = 0;
             break;
         }
         player->HP += heal_amount;
@@ -597,7 +639,8 @@ static void Resolve_Immediate_Effects(Player *player)
         break;
     }
 
-    if (chosen_skill->skill_id == SKILL_ID_SWORD_PHANTOM) player->burst_count = 6;
+    if (chosen_skill->skill_id == SKILL_ID_SWORD_PHANTOM)
+        player->burst_count = 6;
 }
 // --- END REFACTOR ---
 
@@ -685,7 +728,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
     CHN(player->name = (char *)name_chn);
     player->XIUWEI = g_config.initial_xiuwei;
     player->QI = g_config.initial_qi;
-    player->evade = g_config.initial_evade > 0 ? g_config.initial_evade : 0.05f;
+    player->evade = g_config.initial_evade > 0 ? g_config.initial_evade : 0.1f;
     player->HP = max_HP[player->XIUWEI];
     player->ATK = Yuan[player->XIUWEI];
     player->YUAN = Yuan[player->XIUWEI];
@@ -694,6 +737,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
     player->burst_count = 0;
     player->healing = 0;
     player->enraged = 0;
+    player->bleeding = 0;
     player->cursed = 0;
     player->damage_received = 0;
     player->action_cost = 0;
@@ -703,6 +747,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
     Update_Player_Skills(player);
 }
 
+// 随机事件
 int Trigger_Fate(Player *player)
 {
     // 随机选择一个机缘事件 (避开 FATE_None)
@@ -713,8 +758,8 @@ int Trigger_Fate(Player *player)
     switch (fate)
     {
     case FATE_Qi_Infusion:
-    {                                   // 使用花括号创建局部作用域
-        int qi_gain = 5 + (rand() % 6); // 获得 5-10 点QI
+    {                                                              // 使用花括号创建局部作用域
+        int qi_gain = 5 + (rand() % 6 + 1) * Yuan[player->XIUWEI]; // 获得 5-10 点QI
         player->QI += qi_gain;
         CHN_PRINT("[机缘降临!] %s 偶感天地灵气灌体, 瞬间获得了 %d 点QI!\n", player->name, qi_gain);
         ENG_PRINT("[Fate Arrives!] %s feels the infusion of worldly spiritual qi, instantly gaining %d QI!\n", player->name, qi_gain);
@@ -780,7 +825,7 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
 
     // --- BLUEPRINT REFACTOR: Simplified High-Level Coordinator ---
     // 1. 调用模块化函数，分别初始化YOU和CPU
-    Initialize_Player(YOU, "You", "你");
+    Initialize_Player(YOU, "Joiry", "问");
     Initialize_Player(CPU, "CPU", "CPU"); // 临时名字，稍后会被覆盖
 
     // 2. 根据游戏模式确定并设置CPU的具体“人格”
@@ -874,6 +919,7 @@ static void Resolve_Action_Costs_And_Resets(Player *player)
 {
     player->QI -= player->action_cost;
     player->action_cost = 0;
+    player->QI = (player->QI > 0) ? player->QI : 0;
 
     // 集气连击逻辑
     if (player->current_action_type == ACTION_TYPE_GAIN_QI)
@@ -891,9 +937,10 @@ static void Resolve_Action_Costs_And_Resets(Player *player)
     player->current_action_type = ACTION_TYPE_NONE;
 }
 
-// 模块 2: 处理持续性效果 (如治疗、激怒、闪避衰减)
+// 模块 2: 处理持续性效果 (如治疗、激怒、闪避衰减、流血、诅咒)
 static void Resolve_Persistent_Effects(Player *player)
 {
+    printf("\033[33m");
     // 治疗效果
     if (player->healing > 0)
     {
@@ -930,6 +977,17 @@ static void Resolve_Persistent_Effects(Player *player)
         player->evade -= 0.5f * (player->evade - base_evade);
     }
 
+    // 流血效果
+    if (player->bleeding > 0)
+    {
+        player->damage_received += player->bleeding--;
+    }
+    else
+    {
+        player->bleeding = 0;
+    }
+
+    // 诅咒效果
     if (player->cursed > 0)
     {
         player->damage_received += player->cursed;
@@ -943,6 +1001,15 @@ static void Resolve_Persistent_Effects(Player *player)
 // 模块 3: 处理伤害结算
 static void Resolve_Damage(Player *player)
 {
+    if (player->root == ROOT_Solid)
+    {
+        player->HP = (player->HP > max_HP[player->XIUWEI] * 1.2f) ? max_HP[player->XIUWEI] * 1.2f : player->HP;
+    }
+    else
+    {
+        player->HP = (player->HP > max_HP[player->XIUWEI]) ? max_HP[player->XIUWEI] : player->HP;
+    }
+
     if (player->damage_received > 0)
     {
         ENG_PRINT("[%s took \033[35m%d\033[33m damage!]\n", player->name, player->damage_received);
@@ -974,7 +1041,7 @@ static void Apply_Breakthrough_Rewards(Player *player)
     {
         player->HP *= 1.2f;
     }
-    float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
+    float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.05f * player->XIUWEI;
     base_evade += g_config.initial_evade;
     player->evade = base_evade; // 突破后闪避率直接刷新，而不是衰减
 
@@ -1375,26 +1442,28 @@ void CPU_logic_V0_Random(Player *cpu, const Player *opponent)
 // 战术思想: 胜利不是通过击败对手，而是通过让他无法执行自己的战术来取得。
 void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 {
-    // 优先级1：打断关键行动
-    if (opponent->healing > 0 && can_perform_action(cpu, ACTION_TYPE_MELEE))
+    SkillID boost_skill = cpu->learned_skills[ACTION_TYPE_BOOST].skill_id;
+    // 优先级2：破坏资源 (假设已有 Qi Siphon 技能，ID为 Qi_Siphon)
+    if (opponent->QI > 100 && can_perform_action(cpu, ACTION_TYPE_BOOST) && boost_skill == SKILL_ID_ESSENCE_PLUNDER)
     {
-        cpu->current_action_type = ACTION_TYPE_MELEE;
+        cpu->current_action_type = ACTION_TYPE_BOOST;
         return;
     }
 
-    // 优先级2：破坏资源 (假设已有 Qi Siphon 技能，ID为 Qi_Siphon)
-    /*
-    if (opponent->QI > 3 && can_perform_action(cpu, Qi_Siphon)) {
-        cpu->current_action_type = Qi_Siphon;
+    if ((opponent->QI - cpu->QI) > 30)
+    {
+        cpu->current_action_type = ACTION_TYPE_GAIN_QI;
         return;
     }
-    */
 
     // 优先级3：削弱对手 (假设已有 Warcry 技能)
-    if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, ACTION_TYPE_BOOST) && cpu->XIUWEI != 3)
+    if (boost_skill != SKILL_ID_CORE_ERUPTION && boost_skill != SKILL_ID_ESSENCE_PLUNDER)
     {
-        cpu->current_action_type = ACTION_TYPE_BOOST; // 在对手准备进攻时削弱他
-        return;
+        if (opponent->enraged == 0 && opponent->QI > 1 && can_perform_action(cpu, ACTION_TYPE_BOOST))
+        {
+            cpu->current_action_type = ACTION_TYPE_BOOST; // 在对手准备进攻时削弱他
+            return;
+        }
     }
 
     // 如果没有可干扰的，就进行低成本骚扰或集气
@@ -1503,6 +1572,12 @@ void CPU_logic_V1D_Ascetic(Player *cpu, const Player *opponent)
         return;
     }
 
+    if (can_perform_action(cpu, ACTION_TYPE_BURST) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_BURST].base_power * cpu->QI / cpu->learned_skills[ACTION_TYPE_BURST].cost * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_BURST;
+        return;
+    }
+
     if (can_perform_action(cpu, ACTION_TYPE_TERMINATE) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_TERMINATE].base_power * cpu->ATK)
     {
         cpu->current_action_type = ACTION_TYPE_TERMINATE;
@@ -1533,6 +1608,12 @@ void CPU_logic_V1E_Gambler(Player *cpu, const Player *opponent)
 {
     // 寻找当前可用的、威力最大的攻击技能
     ActionType best_attack = ACTION_TYPE_NONE;
+    if (can_perform_action(cpu, ACTION_TYPE_BURST) && opponent->HP / 2 <= cpu->learned_skills[ACTION_TYPE_BURST].base_power * cpu->QI / cpu->learned_skills[ACTION_TYPE_BURST].cost * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_BURST;
+        return;
+    }
+
     if (can_perform_action(cpu, ACTION_TYPE_TERMINATE))
     {
         best_attack = ACTION_TYPE_TERMINATE;
