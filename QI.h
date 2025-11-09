@@ -29,7 +29,6 @@
 #endif
 
 #define TOTAL_ACTION_AMOUNT 10
-#define REALM_COUNT 10
 #define MAX_LOG_TURNS 100
 #define MAX_ROUNDS 500    // 每局最大回合数
 #define STRATEGIC_CYCLE 5 // 定义战略周期为5回合
@@ -50,9 +49,9 @@
 #endif
 
 // AI训练开关
-// #define AI_TRAINING_SET
+//#define AI_TRAINING_SET
 
-#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
+//#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -74,6 +73,22 @@
 
 #pragma region Core_Data_Structures
 // 1. 先定义所有依赖的基础枚举 (Enums)
+enum
+{
+    MORTAL = 0,
+    REFINING,
+    FOUNDATION,
+    CORE_FORM,
+    NASCENT_SOUL,
+    SEVERING,
+    REFINEMENT,
+    UNITY,
+    GREAT,
+    ASCENSION,
+    IMMORTAL,
+    TOTAL_XIUWEI_LEVEL
+} XIUWEI;
+
 typedef enum
 {
     TARGET_SELF,
@@ -90,6 +105,7 @@ typedef enum
     TYPE_BURST,      // 爆发
     TYPE_BLAST,      // 爆破
     TYPE_PROJECT,    // 投射
+    TYPE_RESIST,     // 抵抗
     TYPE_SHIELD,     // 护盾
     TYPE_FORCEFIELD, // 力场
     TYPE_PARRY,      // 招架
@@ -167,7 +183,10 @@ typedef enum
     SKILL_ID_BEETLE_SWARM,
     SKILL_ID_ICE_FLAME,
     // 元婴
+    SKILL_ID_IMMOVABLE_KING,
+    SKILL_ID_STELLAR_SHIFT,
     SKILL_ID_ESSENCE_PLUNDER,
+    SKILL_ID_GREAT_GOLDEN_SWORDFORMATION,
     // ... 未来所有新技能都在此添加唯一ID
     TOTAL_SKILLS // 技能数据总数
 } SkillID;
@@ -222,7 +241,7 @@ typedef struct Player_s
     int gain_combo, burst_count, healing, enraged, bleeding, cursed;
     float evade;
     SpiritualRootID root;
-    int damage_received, action_cost;
+    int HP_change, QI_change;
 } Player;
 
 // 为清晰起见，定义一个新的、简单的日志结构
@@ -236,6 +255,7 @@ typedef struct Game_s
     int round_number;
     char action;
     int opponent_type;
+    int AI_type;
     int current_general_id;
     TurnHistoryLog player_turn_history[STRATEGIC_CYCLE];
     int history_log_count;
@@ -246,7 +266,7 @@ typedef struct
 {
     int initial_hp, initial_qi, initial_xiuwei;
     float initial_evade;
-    int train_reps, enemy_type;
+    int train_reps, enemy_type, ai_type;
     int enable_ai_randomness;
 } GameConfig;
 
@@ -280,8 +300,8 @@ extern Player YOU;
 extern Player CPU;
 extern Game game;
 extern GameConfig g_config;
-extern char *Realm[10];
-extern int max_HP[10], max_QI[10], Yuan[10];
+extern char *Realm[TOTAL_XIUWEI_LEVEL];
+extern int max_HP[TOTAL_XIUWEI_LEVEL], max_QI[TOTAL_XIUWEI_LEVEL], Yuan[TOTAL_XIUWEI_LEVEL];
 extern const char *Eng_Root_Names[TOTAL_ROOT_TYPES];
 extern const char *CHN_Root_Names[TOTAL_ROOT_TYPES];
 
