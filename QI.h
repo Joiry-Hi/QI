@@ -49,9 +49,11 @@
 #endif
 
 // AI训练开关
-//#define AI_TRAINING_SET
+#define AI_TRAINING_SET
 
-//#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
+#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
+
+#define SLOW_DOWN 1 // 方便观察对局
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -69,11 +71,20 @@
 #else
 #define DIRECT_WRITE(code_block)
 #endif
+
+// 跨平台的毫秒级延时工具宏
+#ifdef _WIN32
+    // 在Windows下，使用 <windows.h> 的 Sleep 函数
+    #define SLEEP_MS(ms) Sleep(ms)
+#else
+    // 在Linux/macOS下，使用 <unistd.h> 的 usleep 函数 (需要乘以1000)
+    #define SLEEP_MS(ms) usleep((ms) * 1000)
+#endif
 #pragma endregion definitions &macros
 
 #pragma region Core_Data_Structures
 // 1. 先定义所有依赖的基础枚举 (Enums)
-enum
+typedef enum
 {
     MORTAL = 0,
     REFINING,
@@ -131,7 +142,6 @@ typedef enum
     ATTR_SPIRITUAL
 } AttributeID;
 
-// --- BLUEPRINT REFACTOR: Clarify Naming ---
 // ActionType: 技能的“宏观战斗类别”。决定了它在逻辑上属于哪一“族”的行为。
 // 玩家的技能槽位、AI的决策目标，都基于这个类型。
 typedef enum
@@ -212,6 +222,13 @@ typedef enum
     TOTAL_FATE_TYPES
 } FateID;
 
+typedef enum
+{
+    Mortal_World,
+    Spiritual_World,
+    TOTAL_WORLD_COUNT
+} WORLD;
+
 // 2. 接着定义所有核心数据结构体 (Structs)
 typedef struct Skill_s
 {
@@ -235,7 +252,8 @@ typedef struct Skill_s
 typedef struct Player_s
 {
     char *name;
-    int HP, QI, ATK, YUAN, XIUWEI;
+    int HP, QI, ATK, YUAN;
+    XIUWEI XIUWEI;
     ActionType current_action_type;           // 玩家本回合的“意图”是哪个宏观类别
     Skill learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
     int gain_combo, burst_count, healing, enraged, bleeding, cursed;
@@ -252,6 +270,7 @@ typedef struct
 
 typedef struct Game_s
 {
+    WORLD world;
     int round_number;
     char action;
     int opponent_type;
@@ -265,8 +284,8 @@ typedef struct Game_s
 typedef struct
 {
     int initial_hp, initial_qi, initial_xiuwei;
-    float initial_evade;
-    int train_reps, enemy_type, ai_type;
+    float initial_evade, time_delay;
+    int train_reps, enemy_type, ai_type, world;
     int enable_ai_randomness;
 } GameConfig;
 

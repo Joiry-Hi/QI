@@ -14,13 +14,16 @@ GameConfig g_config = {
     .train_reps = 1000,
     .enemy_type = -1,
     .ai_type = -1,
-    .enable_ai_randomness = 1};
+    .enable_ai_randomness = 1,
+    .world = 0,
+    .time_delay = 1,
+};
 
 char *Realm[TOTAL_XIUWEI_LEVEL] = {"凡人", "炼气", "筑基", "结丹", "元婴", "化神", "炼虚", "合体", "大乘", "飞升", "真仙"};
 char *Eng_Realm[TOTAL_XIUWEI_LEVEL] = {"Mortal", "Qi Refining", "Foundation", "Core Formation", "Nascent Soul", "Spirit Severing", "Void Refinement", "Unity", "Great Ascension", "Ascension", "Immortal"};
-int max_HP[TOTAL_XIUWEI_LEVEL] = {10, 20, 50, 200, 1000, 5000, 20000, 100000, 500000, 1000000};
-int max_QI[TOTAL_XIUWEI_LEVEL] = {10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120};
-int Yuan[TOTAL_XIUWEI_LEVEL] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+int max_HP[TOTAL_XIUWEI_LEVEL] = {10, 20, 50, 200, 1000, 5000, 20000, 100000, 500000, 1000000, 99999999};
+int max_QI[TOTAL_XIUWEI_LEVEL] = {10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 9999999};
+int Yuan[TOTAL_XIUWEI_LEVEL] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 99999999};
 
 const char *GENERAL_NAMES[] = {
     "Disruptor", // ID 0
@@ -109,7 +112,7 @@ void Initialize_Databases()
     g_skill_database[SKILL_ID_COMMANDING_SWORDS] = (Skill){SKILL_ID_COMMANDING_SWORDS, ACTION_TYPE_BURST, "灵剑", "Soul Swords", 'B', 3, 2, TYPE_BURST, ATTR_PHYSICAL, 1.5f, 0, 0, TARGET_ENEMY, "<%s 轻喝一声：“剑来！”，无数飞剑应声而至!>", "<%s utters a single command: \"Swords, arise!\", and countless blades answer the call!>"};
     g_skill_database[SKILL_ID_TERMINATE_THUNDER] = (Skill){SKILL_ID_TERMINATE_THUNDER, ACTION_TYPE_TERMINATE, "唤雷", "Thunderbolt", 'T', 10, 2, TYPE_SMASH, ATTR_THUNDER, 5.0f, 0, 0, TARGET_ENEMY, "<%s 吟诵咒语，引九天神雷轰向敌人!>", "<%s chants and evokes thunder from the heavens!>"};
 
-    g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_RANGED, "剑影分光术", "Sword Phantom Art", 'R', 6, 3, TYPE_BURST, ATTR_WIND, 0.5f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
+    g_skill_database[SKILL_ID_SWORD_PHANTOM] = (Skill){SKILL_ID_SWORD_PHANTOM, ACTION_TYPE_MELEE, "剑影分光术", "Sword Phantom Art", 'A', 6, 3, TYPE_BURST, ATTR_WIND, 0.5f, 0, 0, TARGET_ENEMY, "<%s 剑诀一引，一道剑光骤然分化为万千幻影，如狂风骤雨般射向所有敌人！>", "<%s summons the art, splitting one sword light into myriad phantoms that rain upon all foes!>"};
     g_skill_database[SKILL_ID_CORE_RESTORATION] = (Skill){SKILL_ID_CORE_RESTORATION, ACTION_TYPE_HEAL, "丹元归一", "Golden Core Restoration", 'H', 10, 3, TYPE_HEAL, ATTR_LIGHT, 6.5f, 2, 0.5f, TARGET_SELF, "<%s 催动金丹，精纯的丹元之力流转百骸，迅速修复着受损的经脉。>", "<%s activates the Golden Core, its pure essence flowing through the meridians, rapidly mending the damage.>"};
     g_skill_database[SKILL_ID_CORE_ERUPTION] = (Skill){SKILL_ID_CORE_ERUPTION, ACTION_TYPE_BOOST, "丹元爆发", "Core Eruption", 'C', 0, 3, TYPE_BUFF, ATTR_NONE, 2.0f, 2, 0, TARGET_SELF, "<%s 碎丹求道，霎时气场狂涨！>", "<%s shattering the Core, his presence surged with terrifying might.>"};
     g_skill_database[SKILL_ID_BLOOD_DEVIL_SLASH] = (Skill){SKILL_ID_BLOOD_DEVIL_SLASH, ACTION_TYPE_SMITE, "血魔斩", "Blood-Devil Slash", 'X', 12, 3, TYPE_SLASH, ATTR_BLOOD, 10.0f, 3, 0.4f, TARGET_ENEMY, "<%s 催动魔功，一道血色斩击裹挟着无尽凶煞之气，当头劈下！>", "<%s channels demonic power, unleashing a blood-colored slash filled with baleful energy!>"};
@@ -377,7 +380,7 @@ int main(int argc, char *argv[])
     player_wins = 0;
     do
     {
-#ifndef INTERACTIVE_AI_MODE
+#if !defined(INTERACTIVE_AI_MODE)
         // 只有在非交互模式下，才重定向输出以加速
         AI_TRAINING(freopen(NULL_DEVICE, "w", stdout));
 #endif
@@ -514,15 +517,14 @@ int main(int argc, char *argv[])
         }
 
 // --- BLUEPRINT REFACTOR: Correct I/O Management ---
+#if !defined(INTERACTIVE_AI_MODE)
 #ifdef _WIN32
-#ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("CONOUT$", "w", stdout));
-#endif
 #else
-#ifndef INTERACTIVE_AI_MODE
         AI_TRAINING(freopen("/dev/tty", "w", stdout));
 #endif
 #endif
+
         // --- END REFACTOR ---
 
         Game_summary(&YOU, &CPU);
@@ -537,7 +539,11 @@ int main(int argc, char *argv[])
 
         // 在AI训练模式下，我们不需要任何等待，直接进入下一轮
         AI_TRAINING(
-            // 在这里可以加一个极短的延时，如果需要的话，但通常不需要
+        // 在这里可以加一个极短的延时，如果需要的话，但通常不需要
+        // AI训练观察模式：自动延时
+#if defined(SLOW_DOWN)
+            SLEEP_MS(2000); // 在每局结束后暂停1000毫秒（1秒）
+#endif
         )
 
         // 只在人类对战模式下，执行等待逻辑
@@ -843,6 +849,7 @@ int Trigger_Fate(Player *player)
 void Game_init(Player *YOU, Player *CPU, Game *game)
 {
     g_log_count = 0;
+    game->world = (g_config.world > 0 && g_config.world < TOTAL_WORLD_COUNT) ? g_config.world : 0;
     game->round_number = 0;
     game->current_general_id = rand() % 5; // 开局随机选一个将军
     game->history_log_count = 0;
@@ -868,7 +875,14 @@ void Game_init(Player *YOU, Player *CPU, Game *game)
         game->opponent_type = rand() % 5 + 1; // 如果配置无效，则随机选择一个普通对手
     }
 
-    game->AI_type = g_config.ai_type;
+    if (g_config.ai_type == -1)
+    {
+        game->AI_type = rand() % 5 + 1;
+    }
+    else
+    {
+        game->AI_type = g_config.ai_type;
+    }
 
     // 2. 在初始化时就正确设置LLM对手的名字
     switch (game->opponent_type)
@@ -966,9 +980,13 @@ static void Resolve_QI_Change_And_Resets(Player *player)
 
     player->current_action_type = ACTION_TYPE_NONE;
 
+    int QI_absorb = 0;
     if (player->XIUWEI >= SEVERING)
+        QI_absorb += player->XIUWEI * 2;
+    if (game.world >= Spiritual_World)
+        QI_absorb += player->XIUWEI * 2;
+    if (QI_absorb > 0)
     {
-        int QI_absorb = player->XIUWEI * 2;
         player->QI += QI_absorb;
         CHN_PRINT("天人合一！ %d 点气自行从天地间涌入 %s 体内!\n", QI_absorb, player->name);
         ENG_PRINT("Unity with the Cosmos! %d Qi spontaneously surges from the world into %s's body!\n", QI_absorb, player->name);
@@ -1090,13 +1108,12 @@ static void Apply_Breakthrough_Rewards(Player *player)
 static void Apply_Ascension(Player *player)
 {
     // 1. 清空QI (突破消耗)
-    player->QI = 2147483647;
+    player->QI = 999999999;
 
     // 2. 根据新的境界，刷新所有派生属性
-    player->HP = 2147483647;
-    player->ATK = 2147483647;
-    player->YUAN = 2147483647;
-    player->gain_combo = 2147483647;
+    player->HP = 999999999;
+    player->ATK = 999999999;
+    player->YUAN = 999999999;
 
     // 3. 重置动态状态
     player->enraged = 0;
@@ -1219,6 +1236,12 @@ int Start_new_round(Game *game)
         log->opponent_qi = CPU.QI;   // 对手 (CPU) 的QI
         log->ai_xiuwei = YOU.XIUWEI; // AI (YOU) 的境界
     }
+
+#ifdef AI_TRAINING_SET
+#if defined(SLOW_DOWN)
+    SLEEP_MS(g_config.time_delay * 1000); // 在每局结束后暂停1000毫秒（1秒）
+#endif
+#endif
 
     return 0;
 }
@@ -1372,6 +1395,7 @@ void Game_summary(Player *YOU, Player *CPU)
 {
     // 1. 无论胜负，总游戏场次都加一
     total_games_played++;
+    AI_TRAINING(printf("\n\033[0m(round played: %d)\n", game.round_number));
 
     ENG_PRINT("YOU HP: %d, QI: %d\n", YOU->HP, YOU->QI);
     ENG_PRINT("%s HP: %d, QI: %d\n", CPU->name, CPU->HP, CPU->QI);
@@ -1387,7 +1411,7 @@ void Game_summary(Player *YOU, Player *CPU)
     }
     else if (YOU->HP <= 0 && CPU->HP > 0)
     {
-        CHN_PRINT("\033[35m{游戏结束！你被CPU击败了。}\033[0m\n");
+        CHN_PRINT("\033[35m{游戏结束！你被CPU击败了}\033[0m\n");
         ENG_PRINT("\033[35m{Game Over! You were defeated by CPU。}\033[0m\n");
     }
     else if (game.round_number >= MAX_ROUNDS)
@@ -1481,6 +1505,14 @@ void Load_Config()
             {
                 g_config.enable_ai_randomness = atoi(value);
             }
+            else if (strcmp(key, "World") == 0)
+            {
+                g_config.world = atoi(value);
+            }
+            else if (strcmp(key, "Time_delay") == 0)
+            {
+                g_config.time_delay = atof(value);
+            }
         }
     }
 
@@ -1517,6 +1549,18 @@ void CPU_logic_V0_Random(Player *cpu, const Player *opponent)
 // 战术思想: 胜利不是通过击败对手，而是通过让他无法执行自己的战术来取得。
 void CPU_logic_V1A_Disruptor(Player *cpu, const Player *opponent)
 {
+    if (can_perform_action(cpu, ACTION_TYPE_SMITE) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_SMITE].base_power * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_SMITE;
+        return;
+    }
+
+    if (can_perform_action(cpu, ACTION_TYPE_BURST) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_BURST].base_power * cpu->QI / cpu->learned_skills[ACTION_TYPE_BURST].cost * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_BURST;
+        return;
+    }
+
     SkillID boost_skill = cpu->learned_skills[ACTION_TYPE_BOOST].skill_id;
     // 优先级2：破坏资源 (假设已有 Qi Siphon 技能，ID为 Qi_Siphon)
     if (opponent->QI > 80 && can_perform_action(cpu, ACTION_TYPE_BOOST) && boost_skill == SKILL_ID_ESSENCE_PLUNDER && (rand() % 100 < 50))
@@ -1602,6 +1646,18 @@ void CPU_logic_V1C_Turtle(Player *cpu, const Player *opponent)
     if (cpu->HP < max_HP[cpu->XIUWEI] * 0.8f && can_perform_action(cpu, ACTION_TYPE_HEAL))
     {
         cpu->current_action_type = ACTION_TYPE_HEAL;
+        return;
+    }
+
+    if (can_perform_action(cpu, ACTION_TYPE_SMITE) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_SMITE].base_power * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_SMITE;
+        return;
+    }
+
+    if (can_perform_action(cpu, ACTION_TYPE_BURST) && opponent->HP <= cpu->learned_skills[ACTION_TYPE_BURST].base_power * cpu->QI / cpu->learned_skills[ACTION_TYPE_BURST].cost * cpu->ATK)
+    {
+        cpu->current_action_type = ACTION_TYPE_BURST;
         return;
     }
 
