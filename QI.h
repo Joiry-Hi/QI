@@ -49,11 +49,11 @@
 #endif
 
 // AI训练开关
-#define AI_TRAINING_SET
+//#define AI_TRAINING_SET
 
-#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
+//#define INTERACTIVE_AI_MODE // 是否保持输出流（若是要让受训AI与LLM对战则需打开）
 
-#define SLOW_DOWN 1 // 方便观察对局
+//#define SLOW_DOWN 1 // 方便观察对局
 
 #ifdef AI_TRAINING_SET
 #define AI_TRAINING(...) __VA_ARGS__
@@ -120,6 +120,7 @@ typedef enum
     TYPE_SHIELD,     // 护盾
     TYPE_FORCEFIELD, // 力场
     TYPE_PARRY,      // 招架
+    TYPE_REFLECT,    // 反射
     TYPE_HEAL,       // 疗愈
     TYPE_BUFF,
     TYPE_DEBUFF
@@ -139,7 +140,9 @@ typedef enum
     ATTR_LIGHT,
     ATTR_DARK,
     ATTR_BLOOD,
-    ATTR_SPIRITUAL
+    ATTR_SPIRITUAL,
+    ATTR_KARMA,
+    ATTR_SPACE, 
 } AttributeID;
 
 // ActionType: 技能的“宏观战斗类别”。决定了它在逻辑上属于哪一“族”的行为。
@@ -151,7 +154,7 @@ typedef enum
     ACTION_TYPE_RANGED,
     ACTION_TYPE_DEFEND,
     ACTION_TYPE_HEAL,
-    ACTION_TYPE_PARRY,
+    ACTION_TYPE_COUNTER,
     ACTION_TYPE_BOOST,
     ACTION_TYPE_SMITE,
     ACTION_TYPE_BURST,
@@ -187,6 +190,7 @@ typedef enum
     SKILL_ID_TERMINATE_THUNDER,
     // 结丹
     SKILL_ID_SWORD_PHANTOM,
+    SKILL_ID_BLOOD_DEVIL_DRILL,
     SKILL_ID_CORE_RESTORATION,
     SKILL_ID_CORE_ERUPTION,
     SKILL_ID_BLOOD_DEVIL_SLASH,
@@ -196,7 +200,10 @@ typedef enum
     SKILL_ID_IMMOVABLE_KING,
     SKILL_ID_STELLAR_SHIFT,
     SKILL_ID_ESSENCE_PLUNDER,
+    SKILL_ID_COSMIC_DHARMA_AVATAR,
     SKILL_ID_GREAT_GOLDEN_SWORDFORMATION,
+    // 化神
+    SKILL_ID_SPIRIT_SLAYING_SWORD,
     // ... 未来所有新技能都在此添加唯一ID
     TOTAL_SKILLS // 技能数据总数
 } SkillID;
@@ -256,7 +263,7 @@ typedef struct Player_s
     XIUWEI XIUWEI;
     ActionType current_action_type;           // 玩家本回合的“意图”是哪个宏观类别
     Skill learned_skills[TOTAL_ACTION_TYPES]; // 玩家每个宏观类别下学会的最高阶技能
-    int gain_combo, burst_count, healing, enraged, bleeding, cursed;
+    int gain_bonus, burst_count, healing, enraged, bleeding, cursed, combo;
     float evade;
     SpiritualRootID root;
     int HP_change, QI_change;
