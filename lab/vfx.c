@@ -137,7 +137,6 @@ static VisualSpellID MapSkillToVisual(SkillID id)
         return VFX_BUFF_AURA;
 
     case SKILL_ID_FIREBALL:
-    case SKILL_ID_FLAMEBLAST:
     case SKILL_ID_ICE_FLAME:
         return VFX_PROJECTILE;
 
@@ -149,16 +148,8 @@ static VisualSpellID MapSkillToVisual(SkillID id)
     case SKILL_ID_SPIRIT_SLAYING_SWORD:
         return VFX_SLASH;
 
-    case SKILL_ID_SMITE:
-    case SKILL_ID_GREATSWORD:
-    case SKILL_ID_COSMIC_DHARMA_AVATAR:
-        return VFX_HEAVY_SMASH;
-
     case SKILL_ID_BEETLE_SWARM:
         return VFX_SWARM;
-
-    case SKILL_ID_TERMINATE_THUNDER:
-        return VFX_THUNDER_STRIKE;
 
     case SKILL_ID_GREAT_GOLDEN_SWORDFORMATION:
         return VFX_SWORD_ARRAY;
@@ -179,6 +170,17 @@ static VisualSpellID MapSkillToVisual(SkillID id)
     case SKILL_ID_WINDBLADE:
         return VFX_WIND_BLADE;
 
+    // AOE
+    case SKILL_ID_FLAMEBLAST:
+    case SKILL_ID_SMITE:
+    case SKILL_ID_GREATSWORD:
+    case SKILL_ID_COSMIC_DHARMA_AVATAR:
+        return VFX_AOE_CIRCLE;
+
+    // Beam
+    case SKILL_ID_TERMINATE_THUNDER:
+        return VFX_BEAM;
+
     default:
         return VFX_PROJECTILE;
     }
@@ -192,67 +194,58 @@ void SpellFX_Cast(SpellFX *spell, SkillID skill_id, Vector2 pos, Vector2 dir, in
     spell->start_pos = pos;
     spell->direction = dir;
 
-    // 初始化 velocity
-    // 对于大多数投射物，初始速度 = 方向 * 速度常量
-    float initial_speed = 0.0f;
+    spell->duration = duration;
+    spell->max_duration = duration;
 
+    // 1. 自动查表获取属性
+    spell->attribute = g_skill_database[skill_id].attribute_id;
+
+    // 2. 映射视觉原型 (必须在velocity初始化之前)
+    spell->id = MapSkillToVisual(skill_id);
+
+    // 3. 初始化 velocity (基于映射后的视觉ID)
+    float initial_speed = 0.0f;
     if (spell->id == VFX_PROJECTILE)
         initial_speed = 12.0f;
     else if (spell->id == VFX_DRILL_SHOT)
         initial_speed = 15.0f;
     else if (spell->id == VFX_HOMING_MISSILE)
-        initial_speed = 20.0f; // 灵剑初速度极快
+        initial_speed = 20.0f;
 
     spell->velocity.x = dir.x * initial_speed;
     spell->velocity.y = dir.y * initial_speed;
 
-    spell->duration = duration;
-    spell->max_duration = duration;
-
-    // 1. 自动查表获取属性 (Attributes)
-    // 注意：我们需要访问全局 g_skill_database。确保 vfx.c 包含了 QI.h
-    spell->attribute = g_skill_database[skill_id].attribute_id;
-
-    // 2. 映射视觉原型
-    spell->id = MapSkillToVisual(skill_id);
-
-    // 3. 预计算目标位置 (对于定点技能如重击)
-    // 简单假设目标在前方 400 像素处
+    // 4. 预计算目标位置
     spell->target_pos = (Vector2){pos.x + dir.x * 400, pos.y + dir.y * 400};
 
     // 施法震动反馈
-    if (spell->id == VFX_HEAVY_SMASH || spell->id == VFX_THUNDER_STRIKE)
-    {
+    if (spell->id == VFX_HEAVY_SMASH || spell->id == VFX_BEAM)
         Engine_TriggerShake(5.0f);
-    }
 
-    // --- 针对灵剑的特殊初始化 ---
+    // 灵剑初始化
     if (spell->id == VFX_HOMING_MISSILE)
     {
-        // param 决定数量：param=1 -> 3把, param=2 -> 6把 ...
-        // 限制最大数量防止越界
         spell->sub_count = spell->param;
         if (spell->sub_count > MAX_SUB_FX)
             spell->sub_count = MAX_SUB_FX;
 
         float spawn_radius = 50.0f;
-
         for (int i = 0; i < spell->sub_count; i++)
         {
             spell->subs[i].active = true;
-
-            // 1. 随机散布在施法者四周 (像风刃一样)
             float angle = rand_float(0, 6.28f);
             spell->subs[i].position.x = pos.x + cosf(angle) * spawn_radius;
             spell->subs[i].position.y = pos.y + sinf(angle) * spawn_radius;
-
-            // 2. 初始速度：向外扩散一点点，增加悬浮感
             spell->subs[i].velocity.x = cosf(angle) * 2.0f;
             spell->subs[i].velocity.y = sinf(angle) * 2.0f;
-
-            // 3. 随机相位，用于后续可能的波动效果
             spell->subs[i].phase_offset = rand_float(0, 3.14f);
         }
+    }
+
+    // BEAM: target_pos从方向计算(与Hitbox的Beam_Check端点一致)
+    if (spell->id == VFX_BEAM)
+    {
+        spell->target_pos = (Vector2){pos.x + dir.x * 800.0f, pos.y + dir.y * 800.0f};
     }
 
     spell->param = (param <= 0) ? 1 : param;
@@ -899,6 +892,126 @@ void SpellFX_Update(SpellFX *spell)
                         Particle_Emit(spell->target_pos, spark_vel, tip_col, 10, 1);
                     }
                 }
+            }
+        }
+    }
+
+    // ==========================================
+    // 10. AOE Circle (预警圈 + 爆发环)
+    // ==========================================
+    else if (spell->id == VFX_AOE_CIRCLE)
+    {
+        float progress = 1.0f - (float)spell->duration / spell->max_duration;
+
+        // 预警阶段 (前30%时间): 显示收缩的预警圈
+        if (progress < 0.3f) {
+            float warn_pct = progress / 0.3f; // 0→1 during warning
+            float ring_radius = spell->param * (1.0f - warn_pct * 0.3f); // 微微收缩
+            int ring_particles = 30 + (int)(warn_pct * 20); // 越来越密集
+            for (int i = 0; i < ring_particles; i++) {
+                float angle = (float)i / ring_particles * 6.283f + spell->duration * 0.1f;
+                Vector2 p_pos = {
+                    spell->position.x + cosf(angle) * ring_radius,
+                    spell->position.y + sinf(angle) * ring_radius};
+                SDL_Color warn_col = {255, 200, 50, 150};
+                Particle *p = Particle_Emit(p_pos, (Vector2){0, 0}, warn_col, 8, 2);
+                if (p) p->mass = 0.1f;
+            }
+        }
+        // 爆发阶段 (30%-70%): 冲击波扩散 + 力场
+        else if (progress < 0.7f) {
+            float burst_pct = (progress - 0.3f) / 0.4f;
+            float burst_radius = spell->param * (0.6f + burst_pct * 0.8f);
+            int burst_particles = 15;
+            for (int i = 0; i < burst_particles; i++) {
+                float angle = rand_float(0, 6.283f);
+                float dist = burst_radius * rand_float(0.5f, 1.0f);
+                Vector2 p_pos = {
+                    spell->position.x + cosf(angle) * dist,
+                    spell->position.y + sinf(angle) * dist};
+                Vector2 vel = {
+                    cosf(angle) * (1.0f - burst_pct) * 6.0f,
+                    sinf(angle) * (1.0f - burst_pct) * 6.0f};
+                Particle *p = Particle_Emit(p_pos, vel, color, 15, 2);
+                if (p) p->mass = 0.5f;
+            }
+            ForceGrid_AddRadialForce(spell->position, burst_radius, 3.0f * (1.0f - burst_pct));
+            if (progress < 0.35f) Engine_TriggerShake(4.0f);
+        }
+        // 消散阶段 (70%-100%): 残留粒子
+        else {
+            if (spell->duration % 3 == 0) {
+                for (int i = 0; i < 5; i++) {
+                    float angle = rand_float(0, 6.283f);
+                    float dist = spell->param * rand_float(0.8f, 1.2f);
+                    Vector2 p_pos = {
+                        spell->position.x + cosf(angle) * dist,
+                        spell->position.y + sinf(angle) * dist};
+                    Particle_Emit(p_pos, (Vector2){0, 0.5f}, color, 20, 1);
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // 11. 雷电射线 (Beam - 即时折线闪电)
+    // ==========================================
+    else if (spell->id == VFX_BEAM)
+    {
+        // 第一帧: 生成完整的折线闪电
+        if (spell->duration == spell->max_duration - 1)
+        {
+            Vector2 from = spell->start_pos;
+            Vector2 to = spell->target_pos;
+            float total_dist = sqrtf((to.x-from.x)*(to.x-from.x) + (to.y-from.y)*(to.y-from.y));
+
+            int segments = 15;
+            Vector2 prev = from;
+            for (int i = 1; i <= segments; i++)
+            {
+                float t = (float)i / segments;
+                Vector2 ideal = {
+                    from.x + (to.x - from.x) * t,
+                    from.y + (to.y - from.y) * t};
+                float jitter = (total_dist / segments) * 0.5f;
+                Vector2 current = {
+                    ideal.x + rand_float(-jitter, jitter),
+                    ideal.y + rand_float(-jitter, jitter)};
+
+                // 在prev和current之间填充密集粒子
+                int sub_steps = 8;
+                for (int j = 0; j < sub_steps; j++)
+                {
+                    float sub_t = (float)j / sub_steps;
+                    Vector2 p_pos = {
+                        prev.x + (current.x - prev.x) * sub_t,
+                        prev.y + (current.y - prev.y) * sub_t};
+                    SDL_Color beam_col = (spell->attribute == ATTR_THUNDER)
+                        ? (SDL_Color){220, 100, 255, 255}
+                        : color;
+                    Particle *p = Particle_Emit(p_pos, (Vector2){0, 0}, beam_col, 3, 3);
+                    if (p) p->mass = 0.05f;
+                }
+                prev = current;
+            }
+            Engine_TriggerShake(3.0f);
+        }
+
+        // 后续帧: 残留电弧闪烁 (只在前几帧)
+        if (spell->duration < spell->max_duration - 3 && spell->duration % 3 == 0)
+        {
+            Vector2 from = spell->start_pos;
+            Vector2 to = spell->target_pos;
+            float dist = sqrtf((to.x-from.x)*(to.x-from.x) + (to.y-from.y)*(to.y-from.y));
+            int sparks = 8;
+            for (int i = 0; i < sparks; i++)
+            {
+                float t = rand_float(0, 1);
+                Vector2 p_pos = {
+                    from.x + (to.x - from.x) * t + rand_float(-8, 8),
+                    from.y + (to.y - from.y) * t + rand_float(-8, 8)};
+                SDL_Color spark_col = {255, 255, 200, 200};
+                Particle_Emit(p_pos, (Vector2){0, -2}, spark_col, 6, 1);
             }
         }
     }

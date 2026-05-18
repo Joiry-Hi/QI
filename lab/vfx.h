@@ -46,7 +46,9 @@ typedef enum
     VFX_THUNDER_STRIKE,
     VFX_SWORD_ARRAY,
     VFX_SHIELD,
-    VFX_HOMING_MISSILE // <--- 新增：灵剑/追踪导弹
+    VFX_HOMING_MISSILE, // <--- 新增：灵剑/追踪导弹
+    VFX_AOE_CIRCLE,     // AOE预警圈+爆发环
+    VFX_BEAM            // 即时雷电射线
 } VisualSpellID;
 
 typedef struct {

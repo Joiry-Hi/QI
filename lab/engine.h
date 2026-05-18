@@ -60,4 +60,11 @@ void ForceGrid_AddRadialForce(Vector2 pos, float radius, float strength);
 void ForceGrid_AddDirectionalForce(Vector2 pos, float radius, Vector2 force);
 Vector2 ForceGrid_GetForceAt(Vector2 pos);
 
+// --- 5. 辅助绘制函数 ---
+void Engine_DrawFillRect(int x, int y, int w, int h, SDL_Color color);
+void Engine_DrawFillCircle(int cx, int cy, int radius, SDL_Color color);
+void Engine_DrawCircleOutline(int cx, int cy, int radius, SDL_Color color);
+void Engine_DrawLine(int x1, int y1, int x2, int y2, SDL_Color color);
+void Engine_DrawBar(int x, int y, int w, int h, float pct, SDL_Color fill, SDL_Color bg);
+
 #endif // ENGINE_H

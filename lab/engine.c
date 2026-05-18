@@ -368,6 +368,64 @@ Vector2 ForceGrid_GetForceAt(Vector2 position)
     return Vec2_Lerp(top, bottom, v);
 }
 
+// --- 5. 辅助绘制函数实现 ---
+
+void Engine_DrawFillRect(int x, int y, int w, int h, SDL_Color color)
+{
+    SDL_SetRenderDrawColor(g_Renderer, color.r, color.g, color.b, color.a);
+    SDL_Rect rect = {x, y, w, h};
+    SDL_RenderFillRect(g_Renderer, &rect);
+}
+
+void Engine_DrawFillCircle(int cx, int cy, int radius, SDL_Color color)
+{
+    SDL_SetRenderDrawColor(g_Renderer, color.r, color.g, color.b, color.a);
+    for (int dy = -radius; dy <= radius; dy++) {
+        int dx_max = (int)sqrtf((float)(radius * radius - dy * dy));
+        SDL_RenderDrawLine(g_Renderer, cx - dx_max, cy + dy, cx + dx_max, cy + dy);
+    }
+}
+
+void Engine_DrawCircleOutline(int cx, int cy, int radius, SDL_Color color)
+{
+    SDL_SetRenderDrawColor(g_Renderer, color.r, color.g, color.b, color.a);
+    int x = radius, y = 0;
+    int err = 0;
+    while (x >= y) {
+        SDL_RenderDrawPoint(g_Renderer, cx + x, cy + y);
+        SDL_RenderDrawPoint(g_Renderer, cx + y, cy + x);
+        SDL_RenderDrawPoint(g_Renderer, cx - y, cy + x);
+        SDL_RenderDrawPoint(g_Renderer, cx - x, cy + y);
+        SDL_RenderDrawPoint(g_Renderer, cx - x, cy - y);
+        SDL_RenderDrawPoint(g_Renderer, cx - y, cy - x);
+        SDL_RenderDrawPoint(g_Renderer, cx + y, cy - x);
+        SDL_RenderDrawPoint(g_Renderer, cx + x, cy - y);
+        y++;
+        err += 1 + 2 * y;
+        if (2 * (err - x) + 1 > 0) {
+            x--;
+            err += 1 - 2 * x;
+        }
+    }
+}
+
+void Engine_DrawLine(int x1, int y1, int x2, int y2, SDL_Color color)
+{
+    SDL_SetRenderDrawColor(g_Renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderDrawLine(g_Renderer, x1, y1, x2, y2);
+}
+
+void Engine_DrawBar(int x, int y, int w, int h, float pct, SDL_Color fill, SDL_Color bg)
+{
+    if (pct < 0) pct = 0; if (pct > 1.0f) pct = 1.0f;
+    SDL_Rect bg_rect = {x, y, w, h};
+    SDL_SetRenderDrawColor(g_Renderer, bg.r, bg.g, bg.b, bg.a);
+    SDL_RenderFillRect(g_Renderer, &bg_rect);
+    SDL_Rect fg_rect = {x, y, (int)(w * pct), h};
+    SDL_SetRenderDrawColor(g_Renderer, fill.r, fill.g, fill.b, fill.a);
+    SDL_RenderFillRect(g_Renderer, &fg_rect);
+}
+
 void ForceGrid_DebugRender(SDL_Renderer *renderer)
 {
 
