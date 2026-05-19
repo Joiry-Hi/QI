@@ -44,6 +44,11 @@ void Animator_Init(Caster *p1, Caster *p2)
     g_Casters[1] = p2;
     g_Spells[0].active = false;
     g_Spells[1].active = false;
+    g_QueueHead = 0;
+    g_QueueTail = 0;
+    g_QueueCount = 0;
+    g_Timer = 0;
+    g_Busy = false;
 }
 
 static void Enqueue(AnimCmd cmd)
@@ -166,7 +171,7 @@ void Animator_PushRound(CombatEvent *events, int count)
             current_duration = 60; // 攻击动画耗时
             if (e.skill_id_used == SKILL_ID_COMMANDING_SWORDS)
             {
-                cmd.duration = 120; // 给它 2秒钟时间来回穿梭
+                current_duration = 120; // 给它 2秒钟时间来回穿梭
             }
             cmd.duration = current_duration;
             Enqueue(cmd);

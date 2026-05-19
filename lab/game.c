@@ -7,11 +7,30 @@
 #include "engine.h"
 #include "ui.h"
 #include "ai.h"
+#include "debug_overlay.h"
 #include "QI.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+
+static const char* GetXiuweiNameSafe(int level)
+{
+    static const char* names[TOTAL_XIUWEI_LEVEL] = {
+        "Mortal",
+        "QI Refining",
+        "Foundation",
+        "Core Formation",
+        "Nascent Soul",
+        "Deity Transformation",
+        "Void Refining",
+        "Body Integration",
+        "Mahayana",
+        "Ascension"
+    };
+    if (level < 0 || level >= TOTAL_XIUWEI_LEVEL) return "Unknown";
+    return names[level];
+}
 
 GameState g_Game;
 SpellFX g_VFXPool[MAX_VFX];
@@ -30,6 +49,75 @@ static bool g_MouseRight = false;
 static bool g_KeySkill[9] = {false};
 static bool g_KeyGainQi = false;
 static bool g_KeyDash = false;
+
+static SDL_Color DebugOverlay_HitboxColor(const Hitbox* h)
+{
+    if (h->has_hit || h->lifetime <= 0.0f) {
+        return (SDL_Color){80, 80, 80, 120};
+    }
+    switch (h->type) {
+        case HITBOX_PROJECTILE: return (SDL_Color){255, 240, 90, 190};
+        case HITBOX_SLASH: return (SDL_Color){200, 100, 255, 190};
+        case HITBOX_AOE: return (SDL_Color){80, 255, 120, 180};
+        case HITBOX_BEAM: return (SDL_Color){255, 255, 255, 190};
+        default: return (SDL_Color){180, 180, 180, 170};
+    }
+}
+
+static int DebugOverlay_CountAliveEnemies()
+{
+    int alive = 0;
+    for (int i = 0; i < g_EntityCount; i++) {
+        if (g_Entities[i].is_alive && g_Entities[i].faction == ENTITY_ENEMY) {
+            alive++;
+        }
+    }
+    return alive;
+}
+
+void DebugOverlay_DrawAction()
+{
+    if (!DebugOverlay_IsEnabled()) return;
+
+    for (int i = 0; i < g_EntityCount; i++) {
+        Entity* e = &g_Entities[i];
+        if (!e->is_alive) continue;
+        SDL_Color color = {180, 180, 180, 200};
+        if (e->faction == ENTITY_PLAYER) {
+            color = (SDL_Color){0, 255, 255, 220};
+        } else if (e->faction == ENTITY_ENEMY) {
+            color = (SDL_Color){255, 100, 40, 220};
+        }
+        Engine_DrawCircleOutline((int)e->position.x, (int)e->position.y,
+                                 (int)e->radius, color);
+    }
+
+    for (int i = 0; i < g_HitboxCount; i++) {
+        Hitbox* h = &g_Hitboxes[i];
+        float radius = h->radius;
+        Vector2 pos = h->position;
+        if (h->type == HITBOX_AOE) {
+            radius = h->aoe_outer_radius;
+        }
+        Engine_DrawCircleOutline((int)pos.x, (int)pos.y, (int)radius,
+                                 DebugOverlay_HitboxColor(h));
+    }
+
+    const int x = 12;
+    const int y = 78;
+    const int w = 120;
+    const int h = 8;
+    Engine_DrawFillRect(x - 4, y - 6, w + 8, 42, (SDL_Color){0, 0, 0, 110});
+    Engine_DrawBar(x, y, w, h, (float)g_HitboxCount / MAX_HITBOXES,
+                   (SDL_Color){255, 240, 90, 220},
+                   (SDL_Color){35, 35, 35, 190});
+    Engine_DrawBar(x, y + 12, w, h, (float)g_DamageEventCount / MAX_EVENTS_PER_FRAME,
+                   (SDL_Color){255, 100, 80, 220},
+                   (SDL_Color){35, 35, 35, 190});
+    Engine_DrawBar(x, y + 24, w, h, (float)DebugOverlay_CountAliveEnemies() / MAX_ENEMIES,
+                   (SDL_Color){255, 130, 60, 220},
+                   (SDL_Color){35, 35, 35, 190});
+}
 
 void Game_Init()
 {
@@ -86,40 +174,37 @@ void Game_SpawnWave(int wave)
             snprintf(name, 32, "Enemy %d", i + 1);
         }
         Entity_Init(&enemy, g_EntityCount, name, (XIUWEI)xiuwei_level, ENTITY_ENEMY);
+        Entity* spawned = &g_Entities[g_EntityCount - 1];
 
         // 随机生成在屏幕边缘
         int edge = rand() % 4;
         float padding = 40.0f;
         switch (edge) {
-            case 0: enemy.position = (Vector2){rand() % SCREEN_WIDTH, -padding}; break;
-            case 1: enemy.position = (Vector2){rand() % SCREEN_WIDTH, SCREEN_HEIGHT + padding}; break;
-            case 2: enemy.position = (Vector2){-padding, rand() % SCREEN_HEIGHT}; break;
-            default: enemy.position = (Vector2){SCREEN_WIDTH + padding, rand() % SCREEN_HEIGHT}; break;
+            case 0: spawned->position = (Vector2){rand() % SCREEN_WIDTH, -padding}; break;
+            case 1: spawned->position = (Vector2){rand() % SCREEN_WIDTH, SCREEN_HEIGHT + padding}; break;
+            case 2: spawned->position = (Vector2){-padding, rand() % SCREEN_HEIGHT}; break;
+            default: spawned->position = (Vector2){SCREEN_WIDTH + padding, rand() % SCREEN_HEIGHT}; break;
         }
+        spawned->caster.position = spawned->position;
 
         // Boss有额外加成
         if (is_boss) {
-            enemy.hp *= 5;
-            enemy.max_hp = enemy.hp;
-            enemy.move_speed *= 0.7f;
-            enemy.radius = 28.0f;
-            enemy.color = (SDL_Color){255, 200, 0, 255};
-            enemy.caster.color = enemy.color;
+            spawned->hp *= 5;
+            spawned->max_hp = spawned->hp;
+            spawned->move_speed *= 0.7f;
+            spawned->radius = 28.0f;
+            spawned->color = (SDL_Color){255, 200, 0, 255};
+            spawned->caster.color = spawned->color;
         }
 
         // 随机AI人格 (0-5)
-        enemy.ai_personality = rand() % 6;
-
-        // 注册 (Entity_Init内部已经调用Register, 但ID需要更新)
-        // Entity_Init uses g_EntityCount, so the entity is already in the array
-        // We just need to update its local copy - actually Entity_Init calls
-        // Register which copies the entity in. So the local is just a temp.
+        spawned->ai_personality = rand() % 6;
     }
 
     g_Game.enemies_remaining = enemy_count;
     printf("[Wave %d] %d enemies spawned (Xiuwei: %s)%s\n",
            wave, enemy_count,
-           (xiuwei_level < TOTAL_XIUWEI_LEVEL) ? "level" : "?",
+           GetXiuweiNameSafe(xiuwei_level),
            is_boss ? " -- BOSS WAVE!" : "");
 
     // 玩家回复一些状态
@@ -144,7 +229,7 @@ void Game_AddDamageNumber(Vector2 pos, int dmg, SDL_Color color)
     }
 }
 
-void Game_ProcessInput(SDL_Event* event, const Uint8* keystate, float dt)
+void Game_ProcessInput(const InputState* input, const Uint8* keystate, float dt)
 {
     Entity* p = &g_Entities[0]; // player is always entity 0
 
@@ -164,43 +249,39 @@ void Game_ProcessInput(SDL_Event* event, const Uint8* keystate, float dt)
     // --- 鼠标 ---
     SDL_GetMouseState(&g_MouseX, &g_MouseY);
 
-    // 鼠标滚轮切换技能 (通过event)
-    if (event->type == SDL_MOUSEWHEEL) {
-        if (event->wheel.y > 0) {
-            p->selected_skill_slot = (p->selected_skill_slot - 1 + 9) % 9;
-        } else if (event->wheel.y < 0) {
-            p->selected_skill_slot = (p->selected_skill_slot + 1) % 9;
+    // 边沿触发按键 (避免依赖单一 SDL_Event 导致输入丢失)
+    for (int i = 0; i < 9; i++) {
+        if (input->key_1_to_9_pressed[i]) {
+            p->selected_skill_slot = i;
         }
     }
 
-    // 数字键切换技能槽
-    if (event->type == SDL_KEYDOWN) {
-        SDL_Keycode key = event->key.keysym.sym;
-        if (key >= SDLK_1 && key <= SDLK_9) {
-            p->selected_skill_slot = (int)(key - SDLK_1);
+    if (input->key_q_pressed) {
+        SkillID id = SKILL_ID_GAIN_QI;
+        if (Entity_CanCast(p, id)) {
+            Entity_CastSkill(p, id, (Vector2){0, 0});
         }
-        // Q: Gain QI
-        if (key == SDLK_q && !event->key.repeat) {
-            SkillID id = SKILL_ID_GAIN_QI;
-            if (Entity_CanCast(p, id)) {
-                Entity_CastSkill(p, id, (Vector2){0,0});
-            }
+    }
+
+    if (input->key_space_pressed && p->dash_cooldown <= 0 && p->qi >= 2) {
+        p->dash_cooldown = 1.5f;
+        p->qi -= 2;
+        p->invuln_timer = 0.2f;
+        Vector2 dash_dir = move_dir;
+        if (mlen < 0.01f) { dash_dir.x = 0; dash_dir.y = -1; }
+        p->position.x += dash_dir.x * 120.0f;
+        p->position.y += dash_dir.y * 120.0f;
+        for (int i = 0; i < 10; i++) {
+            SDL_Color white = {255, 255, 255, 150};
+            Particle_Emit(p->position, (Vector2){-dash_dir.x * 2, -dash_dir.y * 2}, white, 15, 1);
         }
-        // Space: 闪避
-        if (key == SDLK_SPACE && p->dash_cooldown <= 0 && p->qi >= 2) {
-            p->dash_cooldown = 1.5f;
-            p->qi -= 2;
-            p->invuln_timer = 0.2f;
-            Vector2 dash_dir = move_dir;
-            if (mlen < 0.01f) { dash_dir.x = 0; dash_dir.y = -1; } // 默认向上闪
-            p->position.x += dash_dir.x * 120.0f;
-            p->position.y += dash_dir.y * 120.0f;
-            // 闪避粒子
-            for (int i = 0; i < 10; i++) {
-                SDL_Color white = {255,255,255,150};
-                Particle_Emit(p->position, (Vector2){-dash_dir.x * 2, -dash_dir.y * 2}, white, 15, 1);
-            }
-        }
+    }
+
+    if (input->wheel_delta != 0) {
+        int slot = p->selected_skill_slot + input->wheel_delta;
+        slot %= 9;
+        if (slot < 0) slot += 9;
+        p->selected_skill_slot = slot;
     }
 
     // --- 鼠标施法 ---
@@ -287,6 +368,10 @@ void Game_Update(float dt)
         DamageEvent* ev = &g_DamageEvents[i];
         Entity* target = Entity_GetByID(ev->target_entity_id);
         if (target && target->is_alive) {
+            if (target->entity_id == 0 && Combat_GetTracePlayerDamage()) {
+                printf("[EVENT->APPLY] hp_before=%d dmg=%d src=%d skill=%d\n",
+                       target->hp, ev->final_damage, ev->source_entity_id, ev->skill_id);
+            }
             Entity_TakeDamage(target, ev->final_damage, ev->source_entity_id, ev->skill_id);
             // 浮动伤害数字
             Game_AddDamageNumber(target->position, ev->final_damage,
@@ -358,14 +443,13 @@ void Game_Render()
 {
     Engine_Clear();
 
+    Particle_RenderAll();
+    DebugOverlay_DrawAction();
     UI_DrawEnemyHealthBars();
     UI_DrawPlayerHUD(&g_Entities[0]);
     UI_DrawSkillBar(&g_Entities[0]);
     UI_DrawWaveInfo(g_Game.wave_number, g_Game.score, g_Game.game_time);
     UI_DrawDamageNumbers();
-
-    // 渲染粒子 (在UI之后, 让粒子在UI上层)
-    Particle_RenderAll();
 
     if (g_Game.is_game_over) {
         UI_DrawGameOver(g_Game.wave_number, g_Game.score, g_Game.game_time);

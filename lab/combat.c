@@ -16,6 +16,27 @@ int g_HitboxCount = 0;
 DamageEvent g_DamageEvents[MAX_EVENTS_PER_FRAME];
 int g_DamageEventCount = 0;
 
+#ifndef COMBAT_TRACE_PLAYER_DAMAGE
+#define COMBAT_TRACE_PLAYER_DAMAGE 0
+#endif
+
+static bool g_TracePlayerDamage = COMBAT_TRACE_PLAYER_DAMAGE != 0;
+
+void Combat_SetTracePlayerDamage(bool enabled)
+{
+    g_TracePlayerDamage = enabled;
+}
+
+bool Combat_GetTracePlayerDamage()
+{
+    return g_TracePlayerDamage;
+}
+
+void DamageEvents_Clear()
+{
+    g_DamageEventCount = 0;
+}
+
 // --- 空间哈希网格 ---
 // 每格最多存储的数量
 #define MAX_PER_CELL 64
@@ -37,7 +58,6 @@ void CollisionGrid_Clear()
             g_Grid[x][y].hitbox_count = 0;
         }
     }
-    g_DamageEventCount = 0;
 }
 
 static void GridCoords(Vector2 pos, int* cx, int* cy)
@@ -95,6 +115,25 @@ static bool CircleOverlap(Vector2 a, float ra, Vector2 b, float rb)
     return dist_sq < sum_r * sum_r;
 }
 
+static bool IsHostileHit(const Hitbox* h, const Entity* target)
+{
+    Entity* source = Entity_GetByID(h->source_entity_id);
+    if (!source) return false;
+    if (target->entity_id == h->source_entity_id) return false;
+    if (target->faction == ENTITY_NEUTRAL || source->faction == ENTITY_NEUTRAL) return false;
+    if (target->faction == source->faction) return false;
+    if (h->damage <= 0) return false;
+    return true;
+}
+
+static void TracePlayerEvent(const Hitbox* h, int target_id)
+{
+    if (g_TracePlayerDamage && target_id == 0) {
+        printf("[HIT->EVENT] src=%d skill=%d dmg=%d\n",
+               h->source_entity_id, h->skill_id, h->damage);
+    }
+}
+
 // 检查点是否在扇形内
 static bool PointInArc(Vector2 point, Vector2 origin, Vector2 dir, float radius, float arc_half)
 {
@@ -131,8 +170,7 @@ void CollisionGrid_Resolve()
                         int eid = cell->entity_ids[ei];
                         Entity* e = Entity_GetByID(eid);
                         if (!e || !e->is_alive) continue;
-                        if (e->entity_id == h->source_entity_id) continue;
-                        if (e->faction == ENTITY_NEUTRAL) continue;
+                        if (!IsHostileHit(h, e)) continue;
 
                         if (CircleOverlap(h->position, h->radius, e->position, e->radius)) {
                             // 生成伤害事件
@@ -145,6 +183,7 @@ void CollisionGrid_Resolve()
                                 ev->final_damage = h->damage;
                                 ev->result = RESULT_TYPE_NORMAL;
                                 ev->knockback = (Vector2){h->velocity.x * 0.2f, h->velocity.y * 0.2f};
+                                TracePlayerEvent(h, eid);
                             }
 
                             if (h->pierce_count == 0) {
@@ -178,8 +217,7 @@ void CollisionGrid_Resolve()
                         int eid = cell->entity_ids[ei];
                         Entity* e = Entity_GetByID(eid);
                         if (!e || !e->is_alive) continue;
-                        if (e->entity_id == h->source_entity_id) continue;
-                        if (e->faction == ENTITY_NEUTRAL) continue;
+                        if (!IsHostileHit(h, e)) continue;
 
                         if (PointInArc(e->position, h->position, h->arc_dir, h->radius, arc_half)) {
                             if (g_DamageEventCount < MAX_EVENTS_PER_FRAME) {
@@ -191,6 +229,7 @@ void CollisionGrid_Resolve()
                                 ev->final_damage = h->damage;
                                 ev->result = RESULT_TYPE_NORMAL;
                                 ev->knockback = (Vector2){h->arc_dir.x * 5.0f, h->arc_dir.y * 5.0f};
+                                TracePlayerEvent(h, eid);
                             }
                         }
                     }
@@ -220,10 +259,7 @@ void CollisionGrid_Resolve()
                         int eid = cell->entity_ids[ei];
                         Entity* e = Entity_GetByID(eid);
                         if (!e || !e->is_alive) continue;
-                        if (e->entity_id == h->source_entity_id && !h->aoe_source_is_entity) continue;
-                        if (e->faction == ENTITY_NEUTRAL) continue;
-                        // 自身护盾不伤自己
-                        if (h->aoe_source_is_entity && e->entity_id == h->source_entity_id && h->damage > 0) continue;
+                        if (!IsHostileHit(h, e)) continue;
 
                         if (CircleOverlap(aoe_pos, h->aoe_outer_radius, e->position, e->radius)) {
                             if (g_DamageEventCount < MAX_EVENTS_PER_FRAME && e->invuln_timer <= 0) {
@@ -242,6 +278,7 @@ void CollisionGrid_Resolve()
                                     ev->knockback.x = kx / klen * 3.0f;
                                     ev->knockback.y = ky / klen * 3.0f;
                                 }
+                                TracePlayerEvent(h, eid);
                             }
                         }
                     }
@@ -363,8 +400,12 @@ void Beam_Check(Vector2 from, Vector2 to, int source_id, SkillID skill_id,
     for (int i = 0; i < g_EntityCount; i++) {
         Entity* e = &g_Entities[i];
         if (!e->is_alive) continue;
+        Entity* source = Entity_GetByID(source_id);
+        if (!source) continue;
         if (e->entity_id == source_id) continue;
-        if (e->faction == ENTITY_NEUTRAL) continue;
+        if (e->faction == ENTITY_NEUTRAL || source->faction == ENTITY_NEUTRAL) continue;
+        if (e->faction == source->faction) continue;
+        if (damage <= 0) continue;
 
         // 点(实体)到线段(射线)的最短距离
         float ex = e->position.x - from.x;
@@ -394,6 +435,10 @@ void Beam_Check(Vector2 from, Vector2 to, int source_id, SkillID skill_id,
                     ev->final_damage = damage;
                     ev->result = RESULT_TYPE_NORMAL;
                     ev->knockback = (Vector2){line_dx / line_len * 2.0f, line_dy / line_len * 2.0f};
+                    if (g_TracePlayerDamage && e->entity_id == 0) {
+                        printf("[HIT->EVENT] src=%d skill=%d dmg=%d\n",
+                               source_id, skill_id, damage);
+                    }
                 }
             }
         }

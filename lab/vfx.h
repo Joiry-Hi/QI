@@ -67,6 +67,9 @@ typedef struct {
     AttributeID attribute;
     int caster_idx;
     int param; 
+    float visual_radius;
+    float visual_arc;
+    float visual_speed;
 
     // --- 新增：子实体数组 ---
     // 用于处理多重灵剑、多重虫群等
@@ -77,6 +80,7 @@ typedef struct {
 
 // 注意：函数名已按你的要求修改
 void SpellFX_Cast(SpellFX *spellfx, SkillID skill_id, Vector2 pos, Vector2 dir, int duration, int param);
+void SpellFX_SetCombatShape(SpellFX *spellfx, float radius, float arc_angle, float speed);
 void SpellFX_Update(SpellFX *spellfx);
 
 #endif // VFX_H

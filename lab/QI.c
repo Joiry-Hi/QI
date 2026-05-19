@@ -2238,9 +2238,16 @@ void Load_AI_Weights()
     FILE *file = fopen("ai_weights.dat", "rb"); // 以二进制读取模式打开
     if (file)
     {
-        fread(&g_ai_weights, sizeof(AI_Weights), 1, file);
+        size_t nread = fread(&g_ai_weights, sizeof(AI_Weights), 1, file);
         fclose(file);
-        printf("\n[AI weights loaded from file.]\n");
+        if (nread == 1)
+        {
+            printf("\n[AI weights loaded from file.]\n");
+        }
+        else
+        {
+            printf("\n[AI weights file read failed, using defaults.]\n");
+        }
     }
 }
 
@@ -2545,4 +2552,3 @@ void Engine_GetEntitySnapshot(int entity_id, EntitySnapshot* out_snapshot) {
 }
 
 #pragma endregion
-

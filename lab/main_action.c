@@ -8,6 +8,8 @@
  */
 #include "engine.h"
 #include "game.h"
+#include "input_state.h"
+#include "debug_overlay.h"
 #include <stdio.h>
 #include <stdbool.h>
 
@@ -24,6 +26,7 @@ int main(int argc, char* argv[])
 
     bool running = true;
     SDL_Event event;
+    InputState input;
     Uint32 last_time = SDL_GetTicks();
 
     printf("=== QI-Anima: Cultivation Arena ===\n");
@@ -33,6 +36,8 @@ int main(int argc, char* argv[])
     printf("====================================\n");
 
     while (running) {
+        InputState_BeginFrame(&input);
+
         Uint32 now = SDL_GetTicks();
         float dt = (now - last_time) / 1000.0f;
         if (dt > 0.1f) dt = 0.1f; // cap
@@ -40,27 +45,25 @@ int main(int argc, char* argv[])
 
         // --- 事件处理 ---
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
-            }
-            if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    running = false;
-                }
-                if (g_Game.is_game_over && event.key.keysym.sym == SDLK_RETURN) {
-                    // 重新开始
-                    Game_Init();
-                }
-            }
+            InputState_HandleEvent(&input, &event);
+        }
+
+        if (input.quit_requested || input.key_escape_pressed) running = false;
+        if (g_Game.is_game_over && input.key_enter_pressed) Game_Init();
+        if (input.key_f3_pressed) {
+            DebugOverlay_Toggle();
+            Combat_SetTracePlayerDamage(DebugOverlay_IsEnabled());
+            printf("[Debug Overlay] %s\n", DebugOverlay_IsEnabled() ? "ON" : "OFF");
         }
 
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
 
         // --- 力场清空 ---
         ForceGrid_Clear();
+        DamageEvents_Clear();
 
         // --- 输入处理 ---
-        Game_ProcessInput(&event, keystate, dt);
+        Game_ProcessInput(&input, keystate, dt);
 
         // --- 游戏更新 ---
         Game_Update(dt);

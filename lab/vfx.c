@@ -196,6 +196,10 @@ void SpellFX_Cast(SpellFX *spell, SkillID skill_id, Vector2 pos, Vector2 dir, in
 
     spell->duration = duration;
     spell->max_duration = duration;
+    spell->param = (param <= 0) ? 1 : param;
+    spell->visual_radius = 0.0f;
+    spell->visual_arc = 0.0f;
+    spell->visual_speed = 0.0f;
 
     // 1. 自动查表获取属性
     spell->attribute = g_skill_database[skill_id].attribute_id;
@@ -206,11 +210,11 @@ void SpellFX_Cast(SpellFX *spell, SkillID skill_id, Vector2 pos, Vector2 dir, in
     // 3. 初始化 velocity (基于映射后的视觉ID)
     float initial_speed = 0.0f;
     if (spell->id == VFX_PROJECTILE)
-        initial_speed = 12.0f;
+        initial_speed = 450.0f / 60.0f;
     else if (spell->id == VFX_DRILL_SHOT)
-        initial_speed = 15.0f;
+        initial_speed = 600.0f / 60.0f;
     else if (spell->id == VFX_HOMING_MISSILE)
-        initial_speed = 20.0f;
+        initial_speed = 400.0f / 60.0f;
 
     spell->velocity.x = dir.x * initial_speed;
     spell->velocity.y = dir.y * initial_speed;
@@ -247,8 +251,20 @@ void SpellFX_Cast(SpellFX *spell, SkillID skill_id, Vector2 pos, Vector2 dir, in
     {
         spell->target_pos = (Vector2){pos.x + dir.x * 800.0f, pos.y + dir.y * 800.0f};
     }
+}
 
-    spell->param = (param <= 0) ? 1 : param;
+void SpellFX_SetCombatShape(SpellFX *spell, float radius, float arc_angle, float speed)
+{
+    if (!spell) return;
+    spell->visual_radius = radius;
+    spell->visual_arc = arc_angle;
+    spell->visual_speed = speed;
+    if (speed > 0.0f &&
+        (spell->id == VFX_PROJECTILE || spell->id == VFX_DRILL_SHOT || spell->id == VFX_HOMING_MISSILE)) {
+        float px_per_frame = speed / 60.0f;
+        spell->velocity.x = spell->direction.x * px_per_frame;
+        spell->velocity.y = spell->direction.y * px_per_frame;
+    }
 }
 
 // 辅助：向量归一化
@@ -318,7 +334,8 @@ void SpellFX_Update(SpellFX *spell)
     // ==========================================
     else if (spell->id == VFX_PROJECTILE)
     {
-        float speed = 12.0f;
+        float speed = (spell->visual_speed > 0.0f) ? spell->visual_speed / 60.0f : 12.0f;
+        float radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 8.0f;
         spell->position.x += spell->direction.x * speed;
         spell->position.y += spell->direction.y * speed;
 
@@ -327,8 +344,8 @@ void SpellFX_Update(SpellFX *spell)
         for (int i = 0; i < trail_count; i++)
         {
             Vector2 spawn = {
-                spell->position.x + rand_float(-8, 8),
-                spell->position.y + rand_float(-8, 8)};
+                spell->position.x + rand_float(-radius, radius),
+                spell->position.y + rand_float(-radius, radius)};
             // 粒子速度 = 继承一点火球速度 + 随机扩散
             Vector2 vel = {
                 spell->direction.x * 2.0f + rand_float(-1, 1),
@@ -372,6 +389,14 @@ void SpellFX_Update(SpellFX *spell)
         float turn_speed = 0.8f; // 转向灵敏度
         spell->velocity.x += desired_dir.x * turn_speed;
         spell->velocity.y += desired_dir.y * turn_speed;
+        if (spell->visual_speed > 0.0f) {
+            float max_speed = spell->visual_speed / 60.0f;
+            float speed = sqrtf(spell->velocity.x * spell->velocity.x + spell->velocity.y * spell->velocity.y);
+            if (speed > max_speed && speed > 0.001f) {
+                spell->velocity.x = spell->velocity.x / speed * max_speed;
+                spell->velocity.y = spell->velocity.y / speed * max_speed;
+            }
+        }
 
         // 限制最大速度 (阻尼)，防止无限加速
         // ... (简化起见略过，靠 duration 自动结束)
@@ -383,7 +408,10 @@ void SpellFX_Update(SpellFX *spell)
         // 2. 视觉：绘制钻头 (Tip)
         // 这是一个高亮的大粒子，永远在最前端
         SDL_Color tip_col = {255, 255, 255, 255}; // 白热化的钻头
-        Particle *tip = Particle_Emit(spell->position, spell->velocity, tip_col, 2, 4);
+        int tip_size = (int)((spell->visual_radius > 0.0f ? spell->visual_radius : 10.0f) * 0.4f);
+        if (tip_size < 3) tip_size = 3;
+        if (tip_size > 8) tip_size = 8;
+        Particle *tip = Particle_Emit(spell->position, spell->velocity, tip_col, 2, tip_size);
         if (tip)
             tip->type = TYPE_VOID; // 钻头无坚不摧
 
@@ -396,7 +424,7 @@ void SpellFX_Update(SpellFX *spell)
         for (int k = 0; k < 2; k++)
         {
             float angle = time + k * 3.14f;
-            float radius = 12.0f; // 螺旋半径
+            float radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 12.0f;
 
             Vector2 offset = {
                 perp.x * cosf(angle) * radius,
@@ -421,11 +449,11 @@ void SpellFX_Update(SpellFX *spell)
         {
 
             // 1. 决定风刃数量 (参数化)
-            // param 1 -> 3把, param 2 -> 6把, param 3 -> 9把...
-            int blade_count = 3 * spell->param;
+            int blade_count = spell->param;
+            if (blade_count < 1) blade_count = 1;
 
             // 生成半径 (在施法者身边多远生成)
-            float spawn_radius = 60.0f;
+            float spawn_radius = 35.0f + (spell->visual_radius > 0.0f ? spell->visual_radius : 10.0f);
 
             for (int b = 0; b < blade_count; b++)
             {
@@ -450,7 +478,8 @@ void SpellFX_Update(SpellFX *spell)
                 }
 
                 // --- 物理参数修改 ---
-                float thrust_strength = 1.0f; // 加速度大小 (每帧增加 1.5px 速度)
+                float px_speed = (spell->visual_speed > 0.0f) ? spell->visual_speed / 60.0f : 6.0f;
+                float thrust_strength = px_speed * 0.16f;
                 Vector2 blade_accel = {
                     blade_dir.x * thrust_strength,
                     blade_dir.y * thrust_strength};
@@ -459,10 +488,8 @@ void SpellFX_Update(SpellFX *spell)
 
                 // 基础飞行角度
                 float base_angle = atan2f(blade_dir.y, blade_dir.x);
-                float blade_speed = rand_float(18.0f, 22.0f); // 略微随机的速度
-
                 // 微型月牙参数
-                int particle_density = 15; // 粒子数少一点，因为刀很小
+                int particle_density = 8 + (int)((spell->visual_radius > 0.0f ? spell->visual_radius : 10.0f) * 0.7f);
                 float arc_width = 1.2f;    // 弧度较窄
 
                 for (int p_idx = 0; p_idx < particle_density; p_idx++)
@@ -500,7 +527,7 @@ void SpellFX_Update(SpellFX *spell)
 
                         // --- 修正点 2: 增加寿命 ---
                         // 因为起步慢，需要更长的寿命才能飞到目标
-                        int life = 50;
+                        int life = spell->max_duration;
 
                         Particle *p = Particle_Emit(p_pos, p_vel, color, life, 2);
                         if (p)
@@ -533,19 +560,14 @@ void SpellFX_Update(SpellFX *spell)
 
             // --- 参数化控制 ---
             // 1. 密度：参数越大，粒子越密，防止变大后出现空隙
-            int particle_density = 60 + (spell->param - 1) * 20;
+            float radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 60.0f;
+            float arc_angle = (spell->visual_arc > 0.0f) ? spell->visual_arc : 1.5f;
+            int particle_density = 24 + (int)(radius * arc_angle * 0.45f);
+            if (particle_density > 220) particle_density = 220;
 
-            // 2. 角度：参数越大，扇面越宽 (微调增长率，0.3f 比较自然)
-            float arc_angle = 2.0f + (spell->param - 1) * 0.3f;
-
-            // 3. 厚度 (关键修改)：参数越大，层数越多
-            // param=1 -> max ~4层
-            // param=2 -> max ~7层
-            // param=3 -> max ~10层 (非常厚!)
-            float max_layers_base = 3.0f + (float)spell->param * 3.0f;
-
-            float radius = 30.0f;
-            float speed = 18.0f;
+            float max_layers_base = 2.0f + radius / 45.0f;
+            float speed = 10.0f + radius / 35.0f;
+            if (speed > 22.0f) speed = 22.0f;
 
             float base_angle = atan2f(spell->direction.y, spell->direction.x);
             SDL_Color core_color = GetAttributeColor(spell->attribute);
@@ -600,7 +622,7 @@ void SpellFX_Update(SpellFX *spell)
                     }
                 }
             }
-            Engine_TriggerShake(2.0f + spell->param * 1.0f); // 震动也随参数增强
+            Engine_TriggerShake(2.0f + radius / 120.0f);
         }
     }
 
@@ -631,7 +653,8 @@ void SpellFX_Update(SpellFX *spell)
         if (spell->duration < 5)
         {
             // 施加巨大的冲击力场
-            ForceGrid_AddRadialForce(current_pos, 80.0f, 5.0f);
+            float radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 80.0f;
+            ForceGrid_AddRadialForce(current_pos, radius, 5.0f);
             Engine_TriggerShake(5.0f);
 
             // 爆炸效果
@@ -654,18 +677,20 @@ void SpellFX_Update(SpellFX *spell)
         if (spell->duration % 2 == 0)
         {
             Vector2 spawn = spell->position; // 随投射物移动
-            spell->position.x += spell->direction.x * 8.0f;
-            spell->position.y += spell->direction.y * 8.0f;
+            float speed = (spell->visual_speed > 0.0f) ? spell->visual_speed / 60.0f : 8.0f;
+            float radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 5.0f;
+            spell->position.x += spell->direction.x * speed;
+            spell->position.y += spell->direction.y * speed;
 
             for (int i = 0; i < 3; i++)
             {
-                Vector2 offset = {rand_float(-20, 20), rand_float(-20, 20)};
+                Vector2 offset = {rand_float(-radius * 2.0f, radius * 2.0f), rand_float(-radius * 2.0f, radius * 2.0f)};
                 Vector2 real_spawn = Vec2_Add(spell->position, offset);
 
                 // 噪点运动
                 Vector2 vel = {
-                    spell->direction.x * 5.0f + rand_float(-3, 3),
-                    spell->direction.y * 5.0f + rand_float(-3, 3)};
+                    spell->direction.x * speed * 0.6f + rand_float(-3, 3),
+                    spell->direction.y * speed * 0.6f + rand_float(-3, 3)};
                 SDL_Color bug_col = {255, 215, 0, 255}; // 金色噬金虫
                 Particle_Emit(real_spawn, vel, bug_col, 60, 3);
             }
@@ -723,15 +748,16 @@ void SpellFX_Update(SpellFX *spell)
     else if (spell->id == VFX_SWORD_ARRAY)
     {
         // param 代表层数 (Layers)
+        float formation_radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 150.0f;
         int layers = spell->param;
+        if (layers < 1) layers = 1;
 
         // 基础旋转速度 (随时间变化)
         float base_angle = (float)spell->duration * 0.05f;
 
         for (int L = 0; L < layers; L++)
         {
-            // 每一层的半径不同：第一层 50，第二层 80，第三层 110...
-            float radius = 50.0f + L * 30.0f;
+            float radius = formation_radius * (float)(L + 1) / (float)layers;
 
             // 每一层的粒子数量不同：外层需要更多粒子才不显得稀疏
             int sword_count = 8 + L * 4;
@@ -748,8 +774,8 @@ void SpellFX_Update(SpellFX *spell)
                 float angle = current_layer_angle + i * (6.283f / sword_count);
 
                 Vector2 pos = {
-                    spell->target_pos.x + cosf(angle) * radius,
-                    spell->target_pos.y + sinf(angle) * radius};
+                    spell->position.x + cosf(angle) * radius,
+                    spell->position.y + sinf(angle) * radius};
 
                 // 发射粒子 (静态粒子，寿命短，依靠高频刷新形成视觉残留)
                 Particle *p = Particle_Emit(pos, (Vector2){0, 0}, color, 5, 2);
@@ -761,7 +787,7 @@ void SpellFX_Update(SpellFX *spell)
         }
 
         // 中心引力场：层数越多，引力越强
-        ForceGrid_AddRadialForce(spell->target_pos, 40.0f + layers * 20.0f, -0.5f * layers);
+        ForceGrid_AddRadialForce(spell->position, formation_radius, -0.5f * layers);
     }
 
     // ==========================================
@@ -773,13 +799,16 @@ void SpellFX_Update(SpellFX *spell)
         for (int i = 0; i < particles; i++)
         {
             float angle = rand_float(0, 6.28f);
-            float dist = rand_float(35, 40);
+            float shield_radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : 50.0f;
+            float dist = rand_float(shield_radius * 0.85f, shield_radius);
             Vector2 pos = {
                 spell->start_pos.x + cosf(angle) * dist,
                 spell->start_pos.y + sinf(angle) * dist};
             Particle_Emit(pos, (Vector2){0, 0}, color, 10, 1);
         }
-        ForceGrid_AddRadialForce(spell->start_pos, 50.0f, 2.0f); // 斥力
+        ForceGrid_AddRadialForce(spell->start_pos,
+                                 (spell->visual_radius > 0.0f) ? spell->visual_radius : 50.0f,
+                                 2.0f); // 斥力
     }
 
     // ==========================================
@@ -838,7 +867,7 @@ void SpellFX_Update(SpellFX *spell)
                 }
 
                 // 推力随着时间稍微增加，越飞越快
-                float thrust_strength = 1.2f;
+                float thrust_strength = (spell->visual_speed > 0.0f) ? spell->visual_speed / 360.0f : 1.2f;
 
                 // 组合力：弹性力(拉回) + 推力(冲刺)
                 sword->velocity.x += spring_force.x + dir_norm.x * thrust_strength;
@@ -902,11 +931,13 @@ void SpellFX_Update(SpellFX *spell)
     else if (spell->id == VFX_AOE_CIRCLE)
     {
         float progress = 1.0f - (float)spell->duration / spell->max_duration;
+        float aoe_radius = (spell->visual_radius > 0.0f) ? spell->visual_radius : (float)spell->param;
+        if (aoe_radius <= 0.0f) aoe_radius = 80.0f;
 
         // 预警阶段 (前30%时间): 显示收缩的预警圈
         if (progress < 0.3f) {
             float warn_pct = progress / 0.3f; // 0→1 during warning
-            float ring_radius = spell->param * (1.0f - warn_pct * 0.3f); // 微微收缩
+            float ring_radius = aoe_radius * (1.0f - warn_pct * 0.3f); // 微微收缩
             int ring_particles = 30 + (int)(warn_pct * 20); // 越来越密集
             for (int i = 0; i < ring_particles; i++) {
                 float angle = (float)i / ring_particles * 6.283f + spell->duration * 0.1f;
@@ -921,7 +952,7 @@ void SpellFX_Update(SpellFX *spell)
         // 爆发阶段 (30%-70%): 冲击波扩散 + 力场
         else if (progress < 0.7f) {
             float burst_pct = (progress - 0.3f) / 0.4f;
-            float burst_radius = spell->param * (0.6f + burst_pct * 0.8f);
+            float burst_radius = aoe_radius * (0.6f + burst_pct * 0.8f);
             int burst_particles = 15;
             for (int i = 0; i < burst_particles; i++) {
                 float angle = rand_float(0, 6.283f);
@@ -943,7 +974,7 @@ void SpellFX_Update(SpellFX *spell)
             if (spell->duration % 3 == 0) {
                 for (int i = 0; i < 5; i++) {
                     float angle = rand_float(0, 6.283f);
-                    float dist = spell->param * rand_float(0.8f, 1.2f);
+                    float dist = aoe_radius * rand_float(0.8f, 1.2f);
                     Vector2 p_pos = {
                         spell->position.x + cosf(angle) * dist,
                         spell->position.y + sinf(angle) * dist};

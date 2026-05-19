@@ -69,6 +69,10 @@ extern int g_HitboxCount;
 extern DamageEvent g_DamageEvents[MAX_EVENTS_PER_FRAME];
 extern int g_DamageEventCount;
 
+void Combat_SetTracePlayerDamage(bool enabled);
+bool Combat_GetTracePlayerDamage();
+void DamageEvents_Clear();
+
 Hitbox* Hitbox_Spawn(int source_id, SkillID skill_id, Vector2 pos, Vector2 vel,
                      float radius, int damage, float lifetime, HitboxType type);
 void Hitbox_Update(Hitbox* h, float dt);

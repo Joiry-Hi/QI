@@ -8,6 +8,7 @@
 #include "entity.h"
 #include "combat.h"
 #include "vfx.h"
+#include "input_state.h"
 
 #define MAX_VFX 64
 #define MAX_DAMAGE_NUMBERS 40
@@ -41,7 +42,7 @@ extern DamageNumber g_DamageNumbers[MAX_DAMAGE_NUMBERS];
 void Game_Init();
 void Game_Update(float dt);
 void Game_Render();
-void Game_ProcessInput(SDL_Event* event, const Uint8* keystate, float dt);
+void Game_ProcessInput(const InputState* input, const Uint8* keystate, float dt);
 void Game_SpawnWave(int wave);
 void Game_AddDamageNumber(Vector2 pos, int dmg, SDL_Color color);
 

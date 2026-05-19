@@ -7,6 +7,8 @@
 #include "engine.h"
 #include "vfx.h"
 #include "QI.h"
+#include "input_state.h"
+#include "debug_overlay.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -58,6 +60,7 @@ int main(int argc, char *argv[])
     // --- 3. 状态变量 ---
     bool is_running = true;
     SDL_Event event;
+    InputState input;
     SkillID current_skill = SKILL_ID_FIREBALL;
     int mouse_x, mouse_y;
     bool left_mouse_down = false;
@@ -80,17 +83,21 @@ int main(int argc, char *argv[])
 
     while (is_running)
     {
+        InputState_BeginFrame(&input);
         // --- 输入处理 ---
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_QUIT)
-                is_running = false;
+            InputState_HandleEvent(&input, &event);
 
             // 键盘按键事件 (用于切换技能等一次性操作)
             if (event.type == SDL_KEYDOWN)
             {
                 switch (event.key.keysym.sym)
                 {
+                case SDLK_F3:
+                    DebugOverlay_Toggle();
+                    printf("[Debug Overlay] %s\n", DebugOverlay_IsEnabled() ? "ON" : "OFF");
+                    break;
                 case SDLK_1:
                     current_skill = SKILL_ID_FIREBALL;
                     break;
@@ -142,6 +149,9 @@ int main(int argc, char *argv[])
                     right_mouse_down = false;
             }
         }
+
+        if (input.quit_requested || input.key_escape_pressed)
+            is_running = false;
 
         // --- 持续按键处理 (用于移动) ---
         if (key_state[SDL_SCANCODE_W])
@@ -238,6 +248,7 @@ int main(int argc, char *argv[])
         // --- 渲染 ---
         Engine_Clear();
         Particle_RenderAll();
+        DebugOverlay_DrawSandbox(&player, dummies, NUM_DUMMIES);
         Engine_Present();
 
         SDL_Delay(16);

@@ -249,8 +249,24 @@ void Entity_Update(Entity* e, float dt)
 // ============================================================
 void Entity_TakeDamage(Entity* e, int damage, int source_id, int skill_id)
 {
-    if (!e->is_alive) return;
-    if (e->invuln_timer > 0) return;
+    if (!e->is_alive) {
+        if (e->entity_id == 0 && Combat_GetTracePlayerDamage()) {
+            printf("[APPLY->HP] blocked=dead dmg=%d\n", damage);
+        }
+        return;
+    }
+    if (damage <= 0) {
+        if (e->entity_id == 0 && Combat_GetTracePlayerDamage()) {
+            printf("[APPLY->HP] blocked=zero_damage dmg=%d\n", damage);
+        }
+        return;
+    }
+    if (e->invuln_timer > 0) {
+        if (e->entity_id == 0 && Combat_GetTracePlayerDamage()) {
+            printf("[APPLY->HP] blocked=invuln timer=%.3f dmg=%d\n", e->invuln_timer, damage);
+        }
+        return;
+    }
 
     // 防御性技能减伤逻辑 (如果正在使用护盾类技能)
     int final_dmg = damage;
@@ -280,6 +296,11 @@ void Entity_TakeDamage(Entity* e, int damage, int source_id, int skill_id)
             Particle_Emit(e->position, v, col, 30, 2);
         }
         Engine_TriggerShake(8.0f);
+    }
+
+    if (e->entity_id == 0 && Combat_GetTracePlayerDamage()) {
+        printf("[APPLY->HP] hp_after=%d dmg=%d src=%d skill=%d\n",
+               e->hp, final_dmg, source_id, skill_id);
     }
 }
 
@@ -346,8 +367,17 @@ void Entity_CastSkill(Entity* e, SkillID id, Vector2 target)
                 spawn.x += -dir.y * (i - (count-1)/2.0f) * offset_dist;
                 spawn.y += dir.x * (i - (count-1)/2.0f) * offset_dist;
             }
-            Hitbox_Spawn(e->entity_id, id, spawn, vel, cfg->hitbox_radius,
-                         damage, cfg->projectile_lifetime, cfg->hitbox_type);
+            Hitbox* h = Hitbox_Spawn(e->entity_id, id, spawn, vel, cfg->hitbox_radius,
+                                      damage, cfg->projectile_lifetime, cfg->hitbox_type);
+            if (h && cfg->is_homing) {
+                Entity* nearest = NULL;
+                float nearest_dist = 0.0f;
+                Entity_FindNearestEnemy(e, &nearest, &nearest_dist);
+                if (nearest) {
+                    h->target_entity_id = nearest->entity_id;
+                    h->homing_strength = cfg->homing_strength;
+                }
+            }
         }
         break;
     }
@@ -420,15 +450,25 @@ void Entity_CastSkill(Entity* e, SkillID id, Vector2 target)
         int duration = (int)(cfg->projectile_lifetime * 60.0f);
         if (duration < 15) duration = 15;
         if (duration > 300) duration = 300;
-        int param = 1;
-        if (cfg->projectile_count > 1) param = cfg->projectile_count;
-        if (cfg->hitbox_type == HITBOX_AOE) param = (int)(cfg->aoe_radius / 40);
+        int param = cfg->projectile_count > 0 ? cfg->projectile_count : 1;
+        float visual_radius = cfg->hitbox_radius;
+        float visual_arc = cfg->slash_arc;
+        float visual_speed = cfg->projectile_speed;
+        if (cfg->hitbox_type == HITBOX_AOE) {
+            visual_radius = cfg->aoe_radius;
+            param = cfg->projectile_count > 0 ? cfg->projectile_count : 1;
+        }
+        if (cfg->hitbox_type == HITBOX_SLASH) {
+            param = (int)(cfg->hitbox_radius / 50.0f);
+            if (param < 1) param = 1;
+        }
 
         // AOE技能VFX位置使用实际AOE中心
         Vector2 vfx_pos = e->position;
         if (cfg->hitbox_type == HITBOX_AOE && !cfg->is_self_target) vfx_pos = target;
 
         SpellFX_Cast(fx_slot, id, vfx_pos, dir, duration, param);
+        SpellFX_SetCombatShape(fx_slot, visual_radius, visual_arc, visual_speed);
     }
 
     // 重置非MELEE/SMITE的连击计数
