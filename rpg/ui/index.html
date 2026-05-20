@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QI RPG</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="qi-bg" aria-hidden="true"></canvas>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">QI RPG</div>
+        <div id="phase-line" class="phase-line">等待载入</div>
+      </div>
+      <div class="top-actions">
+        <button id="workshop-toggle" class="ghost-btn">工坊</button>
+        <button id="skill-tree-toggle" class="ghost-btn">功法</button>
+        <button id="start-btn" class="ghost-btn">开局</button>
+        <button id="reset-btn" class="ghost-btn">重置</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="battle-panel">
+        <div class="duel-row">
+          <article class="fighter player-side">
+            <div class="fighter-art"></div>
+            <div class="fighter-body">
+              <div class="fighter-head">
+                <h2 id="player-name">玩家</h2>
+                <span id="player-realm">凡人</span>
+              </div>
+              <div class="stat-line"><span>生命</span><strong id="player-hp-text">0 / 0</strong></div>
+              <div class="bar"><span id="player-hp-bar"></span></div>
+              <div class="stat-line"><span>灵气</span><strong id="player-qi-text">0 / 0</strong></div>
+              <div class="bar qi"><span id="player-qi-bar"></span></div>
+              <div id="player-flags" class="flags"></div>
+              <div id="player-feed" class="fighter-feed"></div>
+            </div>
+          </article>
+
+          <div class="round-core">
+            <div id="round-number" class="round-number">第 0 回合</div>
+            <div id="battle-intent" class="battle-intent">敌意未明</div>
+            <div id="system-feed" class="system-feed"></div>
+            <button id="continue-btn" class="primary-btn">继续</button>
+          </div>
+
+          <article class="fighter enemy-side">
+            <div class="fighter-art"></div>
+            <div class="fighter-body">
+              <div class="fighter-head">
+                <h2 id="enemy-name">敌人</h2>
+                <span id="enemy-realm">凡人</span>
+              </div>
+              <div class="stat-line"><span>生命</span><strong id="enemy-hp-text">0 / 0</strong></div>
+              <div class="bar danger"><span id="enemy-hp-bar"></span></div>
+              <div class="stat-line"><span>灵气</span><strong id="enemy-qi-text">0 / 0</strong></div>
+              <div class="bar qi"><span id="enemy-qi-bar"></span></div>
+              <div id="enemy-flags" class="flags"></div>
+              <div id="enemy-feed" class="fighter-feed"></div>
+            </div>
+          </article>
+        </div>
+
+        <div id="actions" class="action-grid"></div>
+        <section id="reward-panel" class="reward-panel hidden">
+          <div class="section-head">
+            <h2>战利品</h2>
+            <span>三选一</span>
+          </div>
+          <div id="rewards" class="reward-grid"></div>
+        </section>
+        <section id="replacement-panel" class="replacement-panel hidden">
+          <div class="section-head">
+            <h2 id="replacement-title">替换确认</h2>
+            <span id="replacement-kind"></span>
+          </div>
+          <div id="replacement-new" class="replacement-new"></div>
+          <div id="replacement-options" class="replacement-options"></div>
+        </section>
+        <section id="skill-tree-panel" class="skill-tree-panel hidden">
+          <div class="section-head">
+            <h2>功法树</h2>
+            <span id="skill-tree-state">局后可洗点</span>
+          </div>
+          <div id="skill-tree-list" class="skill-tree-list"></div>
+        </section>
+        <section id="workshop-panel" class="workshop-panel hidden">
+          <div class="section-head">
+            <h2>内容工坊</h2>
+            <span id="workshop-state">本地内容包</span>
+          </div>
+          <div class="workshop-tabs">
+            <button id="workshop-tab-skills" class="ghost-btn active">技能</button>
+            <button id="workshop-tab-artifacts" class="ghost-btn">法器</button>
+            <button id="workshop-tab-elixirs" class="ghost-btn">丹药</button>
+          </div>
+          <div id="workshop-list" class="workshop-list"></div>
+          <div class="panel-actions workshop-actions">
+            <button id="workshop-add-btn" class="ghost-btn">新增</button>
+            <button id="workshop-save-btn" class="primary-btn">保存并编译</button>
+            <button id="workshop-reset-btn" class="ghost-btn">清空自创内容</button>
+          </div>
+        </section>
+        <section id="breakthrough-panel" class="breakthrough-panel hidden">
+          <div class="section-head">
+            <h2>闭关突破</h2>
+            <span id="breakthrough-chance"></span>
+          </div>
+          <div id="breakthrough-body" class="replacement-new"></div>
+          <div class="panel-actions">
+            <button id="attempt-breakthrough-btn" class="primary-btn">尝试突破</button>
+            <button id="skip-breakthrough-btn" class="ghost-btn">暂缓</button>
+          </div>
+        </section>
+        <section id="talent-panel" class="talent-panel hidden">
+          <div class="section-head">
+            <h2>道基天赋</h2>
+            <span>三选一</span>
+          </div>
+          <div id="talents-choice" class="talent-grid"></div>
+        </section>
+        <section id="near-death-panel" class="near-death-panel hidden">
+          <div class="section-head">
+            <h2>濒死抉择</h2>
+            <span id="near-death-odds"></span>
+          </div>
+          <div id="near-death-reason" class="replacement-new"></div>
+          <div id="near-death-options" class="near-death-grid"></div>
+        </section>
+        <section id="route-panel" class="route-panel hidden">
+          <div class="section-head">
+            <h2>选择路线</h2>
+            <span>三选一</span>
+          </div>
+          <div id="routes" class="route-grid"></div>
+        </section>
+        <section id="encounter-panel" class="encounter-panel hidden">
+          <div class="section-head">
+            <h2 id="encounter-title">奇遇</h2>
+            <span id="encounter-penalty"></span>
+          </div>
+          <p id="encounter-text"></p>
+          <div id="encounter-reward" class="encounter-reward"></div>
+          <div id="next-battle" class="next-battle"></div>
+        </section>
+      </section>
+
+      <aside class="side-panel">
+        <section>
+          <div class="section-head">
+            <h2>构筑</h2>
+            <span id="battle-index">0</span>
+          </div>
+          <div id="build-archetype" class="build-title">未成型</div>
+          <div id="build-schools" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>修为</h2>
+            <span id="cultivation-count">0</span>
+          </div>
+          <div id="breakthrough-side" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>魂魄</h2>
+            <span id="soul-state">肉身</span>
+          </div>
+          <div id="soul-side" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>天赋</h2>
+            <span id="talent-count">0 / 8</span>
+          </div>
+          <div id="talents" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>法器</h2>
+            <span id="artifact-count">0 / 3</span>
+          </div>
+          <div id="artifacts" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>丹药</h2>
+            <span id="elixir-count">0 / 6</span>
+          </div>
+          <div id="elixirs" class="elixir-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>完整记录</h2>
+            <span id="log-count">0</span>
+          </div>
+          <div id="logs" class="logs"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
