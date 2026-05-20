@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent
 UI_DIR = ROOT / "ui"
 CUSTOM_CONTENT_PATH = ROOT / "custom_content.json"
 CUSTOM_INC_PATH = ROOT / "rpg_custom_content.inc"
+RUN_RECORDS_PATH = ROOT / "run_records.json"
 STATE_PREFIX = "##UI_JSON##:"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -252,6 +253,48 @@ def content_status(error=None):
     }
 
 
+def load_run_records():
+    if not RUN_RECORDS_PATH.exists():
+        return {"ascensions": [], "memorials": []}
+    try:
+        data = json.loads(RUN_RECORDS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"ascensions": [], "memorials": []}
+    if not isinstance(data, dict):
+        return {"ascensions": [], "memorials": []}
+    return {
+        "ascensions": data.get("ascensions", []) if isinstance(data.get("ascensions", []), list) else [],
+        "memorials": data.get("memorials", []) if isinstance(data.get("memorials", []), list) else [],
+    }
+
+
+def save_run_records(records):
+    records["ascensions"] = sorted(records.get("ascensions", []), key=lambda item: (item.get("age", 999999), item.get("battle_index", 999999)))[:20]
+    records["memorials"] = sorted(records.get("memorials", []), key=lambda item: (-item.get("realm_id", 0), item.get("age", 999999)))[:30]
+    RUN_RECORDS_PATH.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def record_from_snapshot(snapshot):
+    ending = snapshot.get("ending") or {}
+    if not ending.get("active"):
+        return None
+    return {
+        "type": ending.get("type", ""),
+        "title": ending.get("title", ""),
+        "summary": ending.get("summary", ""),
+        "age": int(ending.get("age", 0) or 0),
+        "realm": ending.get("realm", ""),
+        "realm_id": int(ending.get("realm_id", 0) or 0),
+        "battle_index": int(ending.get("battle_index", 0) or 0),
+        "boss_kills": int(ending.get("boss_kills", 0) or 0),
+        "primary_school": ending.get("primary_school", ""),
+        "talent_count": int(ending.get("talent_count", 0) or 0),
+        "soul_state": ending.get("soul_state", ""),
+        "reborn": bool(ending.get("reborn")),
+        "created_at": int(time.time()),
+    }
+
+
 def save_custom_content(data):
     clean = validate_custom_content(data)
     inc_text = generate_custom_inc(clean)
@@ -268,6 +311,7 @@ class QIRPGProcess:
         self.logs = []
         self.last_error = None
         self.version = 0
+        self.recorded_ending_key = None
         self.start_process()
 
     def ensure_binary(self):
@@ -293,6 +337,7 @@ class QIRPGProcess:
             self.state = None
             self.logs = []
             self.last_error = None
+            self.recorded_ending_key = None
             self.version += 1
         self.process = subprocess.Popen(
             [str(ROOT / "qi_rpg"), "--ui-json"],
@@ -338,6 +383,7 @@ class QIRPGProcess:
                             snapshot["bridge_logs"] = self.logs[-30:]
                             snapshot["server_time"] = time.time()
                             self.state = snapshot
+                            self._maybe_record_ending_locked(snapshot)
                             self.last_error = None
                             self.version += 1
                     except json.JSONDecodeError as exc:
@@ -347,6 +393,19 @@ class QIRPGProcess:
         except Exception as exc:
             with self.lock:
                 self.last_error = str(exc)
+
+    def _maybe_record_ending_locked(self, snapshot):
+        record = record_from_snapshot(snapshot)
+        if not record:
+            return
+        key = (record["type"], record["age"], record["realm_id"], record["battle_index"], record["boss_kills"])
+        if self.recorded_ending_key == key:
+            return
+        records = load_run_records()
+        bucket = "ascensions" if record["type"] == "ascension" else "memorials"
+        records[bucket].append(record)
+        save_run_records(records)
+        self.recorded_ending_key = key
 
     def command(self, text):
         if self.process is None or self.process.poll() is not None:
@@ -407,6 +466,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/state":
             self._send_json(GAME.get_state(wait=True))
             return
+        if self.path == "/api/records":
+            self._send_json(load_run_records())
+            return
         if self.path == "/api/content":
             self._send_json({"content": load_custom_content(), "status": content_status()})
             return
@@ -448,10 +510,20 @@ class Handler(BaseHTTPRequestHandler):
                 payload = GAME.command(f"choose_reward index={int(body.get('index', 0))}")
             elif self.path == "/api/replacement":
                 payload = GAME.command(f"choose_replacement slot={int(body.get('slot', -1))}")
+            elif self.path == "/api/artifact/upgrade":
+                payload = GAME.command(f"upgrade_artifact slot={int(body.get('slot', -1))}")
+            elif self.path == "/api/elixir/brew":
+                payload = GAME.command(f"brew_elixir recipe={int(body.get('recipe', -1))}")
+            elif self.path == "/api/preparation/skip":
+                payload = GAME.command("skip_preparation")
             elif self.path == "/api/equip_skill":
                 payload = GAME.command(f"equip_skill id={int(body.get('id', -1))}")
+            elif self.path == "/api/skill/refine":
+                payload = GAME.command(f"refine_skill id={int(body.get('id', -1))}")
             elif self.path == "/api/breakthrough":
                 payload = GAME.command("attempt_breakthrough")
+            elif self.path == "/api/heart_demon":
+                payload = GAME.command(f"choose_heart_demon mode={int(body.get('mode', 0))}")
             elif self.path == "/api/skip_breakthrough":
                 payload = GAME.command("skip_breakthrough")
             elif self.path == "/api/talent":
@@ -472,6 +544,9 @@ class Handler(BaseHTTPRequestHandler):
                 content = save_custom_content(content_default())
                 GAME.start_process()
                 payload = {"content": content, "status": content_status(), "state": GAME.get_state(wait=True)}
+            elif self.path == "/api/records/reset":
+                save_run_records({"ascensions": [], "memorials": []})
+                payload = load_run_records()
             else:
                 self.send_error(404)
                 return

@@ -17,6 +17,7 @@
       <div class="top-actions">
         <button id="workshop-toggle" class="ghost-btn">工坊</button>
         <button id="skill-tree-toggle" class="ghost-btn">功法</button>
+        <button id="details-toggle" class="ghost-btn">详情</button>
         <button id="start-btn" class="ghost-btn">开局</button>
         <button id="reset-btn" class="ghost-btn">重置</button>
       </div>
@@ -116,6 +117,13 @@
             <button id="skip-breakthrough-btn" class="ghost-btn">暂缓</button>
           </div>
         </section>
+        <section id="heart-demon-panel" class="heart-demon-panel hidden">
+          <div class="section-head">
+            <h2>心魔关</h2>
+            <span>破境抉择</span>
+          </div>
+          <div id="heart-demon-options" class="heart-demon-grid"></div>
+        </section>
         <section id="talent-panel" class="talent-panel hidden">
           <div class="section-head">
             <h2>道基天赋</h2>
@@ -130,6 +138,25 @@
           </div>
           <div id="near-death-reason" class="replacement-new"></div>
           <div id="near-death-options" class="near-death-grid"></div>
+        </section>
+        <section id="preparation-panel" class="preparation-panel hidden">
+          <div class="section-head">
+            <h2>局后整备</h2>
+            <span id="preparation-materials">灵材 0 · 药材 0</span>
+          </div>
+          <div class="preparation-grid">
+            <div>
+              <div class="reward-meta">法器强化</div>
+              <div id="artifact-upgrades" class="preparation-list"></div>
+            </div>
+            <div>
+              <div class="reward-meta">炼丹</div>
+              <div id="alchemy-recipes" class="preparation-list"></div>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button id="skip-preparation-btn" class="primary-btn">继续择路</button>
+          </div>
         </section>
         <section id="route-panel" class="route-panel hidden">
           <div class="section-head">
@@ -169,26 +196,18 @@
 
         <section>
           <div class="section-head">
+            <h2>寿元</h2>
+            <span id="life-count">0 / 0</span>
+          </div>
+          <div id="life-side" class="small-list"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
             <h2>魂魄</h2>
             <span id="soul-state">肉身</span>
           </div>
           <div id="soul-side" class="small-list"></div>
-        </section>
-
-        <section>
-          <div class="section-head">
-            <h2>天赋</h2>
-            <span id="talent-count">0 / 8</span>
-          </div>
-          <div id="talents" class="small-list"></div>
-        </section>
-
-        <section>
-          <div class="section-head">
-            <h2>法器</h2>
-            <span id="artifact-count">0 / 3</span>
-          </div>
-          <div id="artifacts" class="small-list"></div>
         </section>
 
         <section>
@@ -198,16 +217,71 @@
           </div>
           <div id="elixirs" class="elixir-list"></div>
         </section>
-
-        <section>
-          <div class="section-head">
-            <h2>完整记录</h2>
-            <span id="log-count">0</span>
-          </div>
-          <div id="logs" class="logs"></div>
-        </section>
       </aside>
     </main>
+
+    <div id="details-modal" class="details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="details-title">
+      <div class="details-backdrop"></div>
+      <aside class="details-panel">
+        <div class="details-head">
+          <div>
+            <h2 id="details-title">角色详情</h2>
+            <p>法器、天赋、材料、年表与完整记录</p>
+          </div>
+          <button id="details-close" class="ghost-btn">关闭</button>
+        </div>
+
+        <div class="details-grid">
+          <section>
+            <div class="section-head">
+              <h2>材料</h2>
+              <span id="material-count">0 / 0</span>
+            </div>
+            <div id="materials-side" class="small-list"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>天赋</h2>
+              <span id="talent-count">0 / 8</span>
+            </div>
+            <div id="talents" class="small-list"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>法器</h2>
+              <span id="artifact-count">0 / 3</span>
+            </div>
+            <div id="artifacts" class="small-list"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>道途年表</h2>
+              <span id="chronicle-count">0</span>
+            </div>
+            <div id="chronicle-list" class="timeline-list"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>飞升榜</h2>
+              <span id="records-count">0 / 0</span>
+            </div>
+            <div id="records-list" class="records-list"></div>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2>完整记录</h2>
+              <span id="log-count">0</span>
+            </div>
+            <div id="logs" class="logs"></div>
+          </section>
+        </div>
+      </aside>
+    </div>
   </div>
   <script src="app.js"></script>
 </body>

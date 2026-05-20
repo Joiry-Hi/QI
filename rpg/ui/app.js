@@ -3,10 +3,14 @@ const state = {
   busy: false,
   skillTreeOpen: false,
   workshopOpen: false,
+  detailsOpen: false,
   workshopTab: "skills",
   content: { skills: [], artifacts: [], elixirs: [] },
   workshopDirty: false,
   workshopLoaded: false,
+  records: { ascensions: [], memorials: [] },
+  recordsLoading: false,
+  recordsLastLoad: 0,
 };
 
 const phaseNames = {
@@ -15,12 +19,15 @@ const phaseNames = {
   battle_result: "回合结算",
   reward_choice: "选择奖励",
   reward_replace: "替换确认",
+  heart_demon_choice: "心魔关",
   breakthrough_choice: "闭关突破",
   talent_choice: "道基天赋",
+  preparation: "局后整备",
   route_choice: "选择路线",
   near_death_choice: "濒死抉择",
   encounter: "奇遇",
   between_battles: "战斗间隙",
+  victory: "飞升",
   defeat: "败北",
 };
 
@@ -72,6 +79,23 @@ async function loadContent() {
   state.workshopLoaded = true;
   state.workshopDirty = false;
   renderWorkshop(state.snapshot || {});
+}
+
+async function loadRecords(force = false) {
+  if (state.recordsLoading) return;
+  const now = Date.now();
+  if (!force && now - state.recordsLastLoad < 5000) return;
+  state.recordsLoading = true;
+  try {
+    const res = await fetch("/api/records");
+    state.records = await res.json();
+    state.recordsLastLoad = Date.now();
+    renderRecords();
+  } catch (_) {
+    // 排行榜是辅助信息，读取失败不影响当前 run。
+  } finally {
+    state.recordsLoading = false;
+  }
 }
 
 async function saveContent() {
@@ -166,6 +190,7 @@ function renderActions(snapshot) {
     btn.innerHTML = `
       <div class="action-title"><span>${esc(action.name || "未知功法")}</span><span>${action.cost} 气</span></div>
       <div class="action-meta">${esc(action.action || "行动")} · ${esc(action.school || "无流派")} · ${action.rank || 0} 阶</div>
+      <div class="action-meta">熟练 Lv${action.mastery_level || 0} · ${action.mastery_xp || 0}/${action.mastery_next || 3}</div>
       ${action.effect_summary ? `<div class="action-meta">${esc(action.effect_summary)}</div>` : ""}
     `;
     btn.addEventListener("click", () => api("/api/action", { slot: action.slot }));
@@ -228,6 +253,31 @@ function renderBreakthrough(snapshot) {
   $("attempt-breakthrough-btn").disabled = !data.available;
 }
 
+function renderHeartDemon(snapshot) {
+  const panel = $("heart-demon-panel");
+  const wrap = $("heart-demon-options");
+  const data = snapshot.heart_demon || {};
+  const visible = snapshot.phase === "heart_demon_choice" && data.active;
+  panel.classList.toggle("hidden", !visible);
+  wrap.innerHTML = "";
+  if (!visible) return;
+  (data.options || []).forEach((option) => {
+    const card = document.createElement("button");
+    card.className = `heart-demon-card ${option.mode || ""}`;
+    card.disabled = !option.available;
+    card.innerHTML = `
+      <div class="reward-title"><span>${esc(option.title || "心魔抉择")}</span><span>${option.chance || 0}%</span></div>
+      <div class="fit-row">
+        <span class="fit-badge">修为 ${option.cost || 0}</span>
+        <span class="fit-badge">${esc(option.mode || "")}</span>
+      </div>
+      <div class="reward-desc">${esc(option.desc || "")}</div>
+    `;
+    card.addEventListener("click", () => api("/api/heart_demon", { mode: option.index }));
+    wrap.appendChild(card);
+  });
+}
+
 function renderTalentChoice(snapshot) {
   const panel = $("talent-panel");
   const wrap = $("talents-choice");
@@ -266,7 +316,11 @@ function renderRoutes(snapshot) {
         <span class="fit-badge">${esc(route.reward_bias || "均衡")}</span>
         ${route.hp_cost_pct ? `<span class="fit-badge">元神 -${route.hp_cost_pct}%</span>` : ""}
         ${route.cultivation_cost ? `<span class="fit-badge">修为 -${route.cultivation_cost}</span>` : ""}
+        <span class="fit-badge">劫气 ${route.debt_delta > 0 ? "+" : ""}${route.debt_delta || 0}</span>
+        ${route.special_rule ? `<span class="fit-badge">${esc(route.special_rule)}</span>` : ""}
       </div>
+      <div class="reward-desc">${esc(route.material_preview || "")} · ${esc(route.enemy_hint || "")}</div>
+      ${route.special_rule ? `<div class="reward-desc">${esc(route.special_hint || "")}</div>` : ""}
       <div class="reward-desc">${route.reward_bias === "还阳" ? "若修为足够，将尝试还阳；否则转化为护魂修为。" : `即得：${esc(reward.name || "修炼资源")} ${reward.amount ? `x${reward.amount}` : ""}`}</div>
     `;
     card.addEventListener("click", () => api("/api/route", { index: route.index }));
@@ -298,6 +352,57 @@ function renderNearDeath(snapshot) {
     card.addEventListener("click", () => api("/api/near_death", { index: option.index }));
     wrap.appendChild(card);
   });
+}
+
+function renderPreparation(snapshot) {
+  const panel = $("preparation-panel");
+  const visible = snapshot.phase === "preparation";
+  panel.classList.toggle("hidden", !visible);
+  const materials = snapshot.materials || {};
+  $("preparation-materials").textContent = `灵材 ${materials.spirit || 0} · 药材 ${materials.herbs || 0}`;
+  $("artifact-upgrades").innerHTML = "";
+  $("alchemy-recipes").innerHTML = "";
+  if (!visible) return;
+
+  const artifacts = snapshot.artifacts || [];
+  if (!artifacts.length) {
+    $("artifact-upgrades").innerHTML = `<div class="action-meta">暂无可强化法器</div>`;
+  } else {
+    artifacts.forEach((item) => {
+      const btn = document.createElement("button");
+      btn.className = "preparation-card";
+      btn.disabled = !item.can_upgrade;
+      const capped = (item.level || 0) >= 3;
+      btn.innerHTML = `
+        <div class="reward-title"><span>${esc(item.name || "未知法器")} +${item.level || 0}</span><span>${capped ? "满级" : `灵材 ${item.upgrade_cost || 0}`}</span></div>
+        <div class="fit-row">
+          <span class="fit-badge">${esc(item.school || "无")}</span>
+          <span class="fit-badge">${esc(item.resonance || "暂无共鸣")}</span>
+        </div>
+        <div class="reward-desc">${esc(item.desc || "")}</div>
+      `;
+      btn.addEventListener("click", () => api("/api/artifact/upgrade", { slot: item.slot }));
+      $("artifact-upgrades").appendChild(btn);
+    });
+  }
+
+  const recipes = snapshot.crafting?.recipes || [];
+  recipes.forEach((recipe) => {
+    const btn = document.createElement("button");
+    btn.className = "preparation-card";
+    btn.disabled = !recipe.can_brew;
+    btn.innerHTML = `
+      <div class="reward-title"><span>${esc(recipe.name || "丹方")}</span><span>药材 ${recipe.cost || 0}</span></div>
+      <div class="fit-row">
+        <span class="fit-badge">${recipe.unlocked ? "可炼" : `需 ${esc(recipe.required_realm || "")}`}</span>
+        ${recipe.custom ? `<span class="fit-badge">自创</span>` : ""}
+      </div>
+      <div class="reward-desc">${esc(recipe.desc || "")}</div>
+    `;
+    btn.addEventListener("click", () => api("/api/elixir/brew", { recipe: recipe.index }));
+    $("alchemy-recipes").appendChild(btn);
+  });
+  if (!recipes.length) $("alchemy-recipes").innerHTML = `<div class="action-meta">暂无丹方</div>`;
 }
 
 function renderReplacement(snapshot) {
@@ -357,23 +462,30 @@ function renderSkillTree(snapshot) {
     return;
   }
   skills.forEach((skill) => {
-    const btn = document.createElement("button");
-    btn.className = `skill-tree-card${skill.equipped ? " equipped" : ""}`;
-    btn.disabled = skill.equipped || !tree.can_respec || (snapshot.player?.cultivation || 0) < (skill.cost || 0);
-    btn.innerHTML = `
+    const card = document.createElement("article");
+    card.className = `skill-tree-card${skill.equipped ? " equipped" : ""}`;
+    card.innerHTML = `
       <div class="reward-title"><span>${esc(skill.name || "未知功法")}</span><span>${skill.equipped ? "已装备" : `修为 ${skill.cost || 0}`}</span></div>
       <div class="fit-row">
         <span class="fit-badge">${esc(skill.action || "行动")}</span>
         <span class="fit-badge">${esc(skill.school || "无")}</span>
         <span class="fit-badge">${skill.rank || 0} 阶</span>
-        <span class="fit-badge">${skill.qi_cost || 0} 气</span>
+        <span class="fit-badge">${skill.effective_qi_cost ?? skill.qi_cost ?? 0} 气</span>
+        <span class="fit-badge">熟练 Lv${skill.mastery_level || 0} · ${skill.mastery_xp || 0}/${skill.mastery_next || 3}</span>
+        ${skill.refine && skill.refine !== "未洗练" ? `<span class="fit-badge">${esc(skill.refine)}</span>` : ""}
         ${skill.bypassed ? `<span class="fit-badge">破格</span>` : ""}
       </div>
       <div class="reward-desc">${esc(skill.desc || "")}</div>
       ${skill.effect_summary ? `<div class="reward-desc">${esc(skill.effect_summary)}</div>` : ""}
+      ${skill.refine_summary ? `<div class="reward-desc">${esc(skill.refine_summary)}</div>` : ""}
+      <div class="skill-tree-actions">
+        <button class="ghost-btn equip-skill-btn" ${skill.equipped || !tree.can_respec || (snapshot.player?.cultivation || 0) < (skill.cost || 0) ? "disabled" : ""}>装备</button>
+        <button class="ghost-btn refine-skill-btn" ${!tree.can_respec || (snapshot.player?.cultivation || 0) < (skill.refine_cost || 0) ? "disabled" : ""}>洗练 ${skill.refine_cost || 0}</button>
+      </div>
     `;
-    btn.addEventListener("click", () => api("/api/equip_skill", { id: skill.id }));
-    wrap.appendChild(btn);
+    card.querySelector(".equip-skill-btn").addEventListener("click", () => api("/api/equip_skill", { id: skill.id }));
+    card.querySelector(".refine-skill-btn").addEventListener("click", () => api("/api/skill/refine", { id: skill.id }));
+    wrap.appendChild(card);
   });
 }
 
@@ -509,21 +621,25 @@ function renderWorkshop(snapshot) {
 }
 
 function renderEncounter(snapshot) {
-  const visible = snapshot.phase === "encounter" || snapshot.phase === "between_battles" || snapshot.phase === "defeat";
+  const visible = snapshot.phase === "encounter" || snapshot.phase === "between_battles" || snapshot.phase === "defeat" || snapshot.phase === "victory";
   $("encounter-panel").classList.toggle("hidden", !visible);
   if (!visible) return;
-  if (snapshot.phase === "defeat") {
-    $("encounter-title").textContent = "道途暂止";
-    $("encounter-text").textContent = "这一次修行止步于此。重置后可重新开局。";
+  if (snapshot.phase === "defeat" || snapshot.phase === "victory") {
+    const ending = snapshot.ending || {};
+    $("encounter-title").textContent = text(ending.title, snapshot.phase === "victory" ? "羽化飞升" : "道途暂止");
+    $("encounter-text").textContent = text(ending.summary, snapshot.phase === "victory" ? "劫尽道成，飞升上界。" : "这一次修行止步于此。重置后可重新开局。");
     $("encounter-penalty").textContent = "";
-    $("encounter-reward").textContent = "";
+    $("encounter-reward").textContent = `终局：${esc(ending.realm || "")} · ${ending.age || 0} 岁`;
     $("next-battle").textContent = "";
     return;
   }
   const next = snapshot.next_battle || {};
   if (snapshot.phase === "between_battles") {
     $("encounter-title").textContent = "整备";
-    $("encounter-text").textContent = "灵息渐稳，下一场战斗正在逼近。";
+    const life = snapshot.life || {};
+    $("encounter-text").textContent = life.last_years_elapsed
+      ? `闭关行走 ${life.last_years_elapsed} 年，灵息渐稳，下一场战斗正在逼近。`
+      : "灵息渐稳，下一场战斗正在逼近。";
     $("encounter-penalty").textContent = "";
     $("encounter-reward").textContent = "调整构筑后继续前行。";
     $("next-battle").innerHTML = `<strong>下一战：第 ${next.index || 0} 战 · ${esc(next.type || "normal")} · ${esc(next.risk || "普通")}</strong><br>${esc(next.enemy || "未知对手")} · ${esc(next.tendency || "未知倾向")} · ${esc(next.enemy_realm || "凡人")}<br>奖励倾向：${esc(next.reward_bias || "均衡")}<br>${esc(next.threat || "")}`;
@@ -552,15 +668,55 @@ function renderSide(snapshot) {
   if (build.synergy_bonus) {
     $("build-schools").innerHTML += `<div class="action-meta">${esc(build.synergy_bonus)}</div>`;
   }
+  if ((build.school_cycles || []).length) {
+    $("build-schools").innerHTML += (build.school_cycles || [])
+      .map((item) => `<span class="pill">${esc(item.summary || `${item.school} ${item.value}`)}</span>`)
+      .join("");
+  }
   const breakthrough = snapshot.breakthrough || {};
   const cultivation = snapshot.player?.cultivation || 0;
+  const player = snapshot.player || {};
   $("cultivation-count").textContent = cultivation;
   $("breakthrough-side").innerHTML = `
     <span class="pill">突破：${esc(breakthrough.current_realm || "当前")} -> ${esc(breakthrough.next_realm || "下一境界")}</span>
     <span class="pill">需求：${breakthrough.cost || 0} · 成功率 ${breakthrough.chance || 0}%</span>
+    <span class="pill">小境界：${player.minor_realm_level || 0}/3 · 理解 ${player.minor_understanding || 0}/${player.minor_threshold || 3}</span>
+    <span class="pill">小境界加成：HP/QI +${player.minor_bonus_pct || 0}%</span>
   `;
 
-  const player = snapshot.player || {};
+  const routeMeta = snapshot.route_meta || {};
+  $("build-schools").innerHTML += `
+    <span class="pill">劫气：${routeMeta.calamity_debt || 0}</span>
+    <span class="pill">连续：${esc(routeMeta.last_route || "未择路线")} x${routeMeta.route_streak || 0}</span>
+    <div class="action-meta">${esc(routeMeta.hint || "")}</div>
+  `;
+
+  const materials = snapshot.materials || {};
+  $("material-count").textContent = `${materials.spirit || 0} / ${materials.herbs || 0}`;
+  $("materials-side").innerHTML = `
+    <span class="pill">灵材：${materials.spirit || 0}</span>
+    <span class="pill">药材：${materials.herbs || 0}</span>
+    <div class="action-meta">灵材用于强化法器，药材用于局后炼丹。</div>
+  `;
+
+  const life = snapshot.life || {};
+  const trib = snapshot.tribulation || {};
+  $("life-count").textContent = `${life.age || 0} / ${life.lifespan || 0}`;
+  $("life-side").innerHTML = `
+    <span class="pill">年龄：${life.age || 0} 岁</span>
+    <span class="pill">寿元：${life.lifespan || 0} 岁</span>
+    <span class="pill">余寿：${life.years_remaining || 0} 年</span>
+    <span class="pill">${esc(life.life_pressure_label || "寿元尚宽")}</span>
+    <span class="pill">雷劫：${esc(trib.label || "天机平稳")} (${trib.pressure || 0})</span>
+    <div class="action-meta">${esc(trib.hint || "")}</div>
+  `;
+
+  const chronicle = snapshot.chronicle || [];
+  $("chronicle-count").textContent = chronicle.length;
+  $("chronicle-list").innerHTML = chronicle.length
+    ? chronicle.slice(-8).reverse().map((item) => `<div class="timeline-item"><strong>${item.age || 0}岁 · ${esc(item.realm || "")}</strong><span>${esc(item.text || "")}</span></div>`).join("")
+    : `<div class="action-meta">道途尚未留下更多痕迹。</div>`;
+
   $("soul-state").textContent = text(player.soul_state_label, "肉身");
   $("soul-side").innerHTML = player.soul_state === "ghost"
     ? `<span class="pill ghost-pill">鬼魂状态</span><span class="pill">再死则魂飞魄散</span><div class="action-meta">寻找还阳坛并积累修为，可重凝肉身。</div>`
@@ -575,7 +731,7 @@ function renderSide(snapshot) {
   const artifacts = snapshot.artifacts || [];
   $("artifact-count").textContent = `${artifacts.length} / 3`;
   $("artifacts").innerHTML = artifacts.length
-    ? artifacts.map((item) => `<span class="pill" title="${esc(item.desc)}">${esc(item.name || "未知法器")}</span>`).join("")
+    ? artifacts.map((item) => `<span class="pill" title="${esc(item.desc)}">${esc(item.name || "未知法器")} +${item.level || 0} · ${esc(item.resonance || "无共鸣")}</span>`).join("")
     : `<span class="pill">暂无法器</span>`;
 
   const elixirs = snapshot.elixirs || [];
@@ -598,6 +754,21 @@ function renderSide(snapshot) {
     : `<div class="log-item">暂无日志</div>`;
 }
 
+function renderRecords() {
+  const asc = state.records.ascensions || [];
+  const mem = state.records.memorials || [];
+  $("records-count").textContent = `${asc.length} / ${mem.length}`;
+  const ascHtml = asc.slice(0, 5).map((item, index) =>
+    `<div class="record-item"><strong>${index + 1}. ${item.age || 0}岁飞升</strong><span>${esc(item.primary_school || "无流派")} · ${item.battle_index || 0}战 · Boss ${item.boss_kills || 0}</span></div>`
+  ).join("");
+  const memHtml = mem.slice(0, 4).map((item) =>
+    `<div class="record-item muted"><strong>${esc(item.title || "道途遗卷")} · ${item.age || 0}岁</strong><span>${esc(item.realm || "")} · ${esc(item.primary_school || "无流派")}</span></div>`
+  ).join("");
+  $("records-list").innerHTML = ascHtml || memHtml
+    ? `${ascHtml}${memHtml}`
+    : `<div class="action-meta">暂无终局记录。</div>`;
+}
+
 function render(snapshot, options = {}) {
   state.snapshot = snapshot;
   if (snapshot.error) {
@@ -605,6 +776,8 @@ function render(snapshot, options = {}) {
     return;
   }
   $("phase-line").textContent = `${phaseNames[snapshot.phase] || snapshot.phase} · ${text(snapshot.build?.archetype, "构筑未定")}`;
+  $("details-modal").classList.toggle("hidden", !state.detailsOpen);
+  $("details-toggle").classList.toggle("active", state.detailsOpen);
   $("round-number").textContent = `第 ${snapshot.round || 0} 回合`;
   renderFighter("player", snapshot.player);
   renderFighter("enemy", snapshot.enemy);
@@ -616,12 +789,15 @@ function render(snapshot, options = {}) {
   if (options.preserveWorkshop) syncWorkshopChrome(snapshot);
   else renderWorkshop(snapshot);
   renderBreakthrough(snapshot);
+  renderHeartDemon(snapshot);
   renderTalentChoice(snapshot);
   renderNearDeath(snapshot);
+  renderPreparation(snapshot);
   renderRoutes(snapshot);
   renderEncounter(snapshot);
   renderSide(snapshot);
   $("continue-btn").disabled = !["battle_result", "encounter", "between_battles"].includes(snapshot.phase);
+  loadRecords();
 }
 
 function initBackground() {
@@ -663,6 +839,20 @@ $("skill-tree-toggle").addEventListener("click", () => {
   state.skillTreeOpen = !state.skillTreeOpen;
   render(state.snapshot || {});
 });
+$("details-toggle").addEventListener("click", () => {
+  state.detailsOpen = true;
+  render(state.snapshot || {}, { preserveWorkshop: true });
+});
+$("details-close").addEventListener("click", () => {
+  state.detailsOpen = false;
+  render(state.snapshot || {}, { preserveWorkshop: true });
+});
+$("details-modal").addEventListener("click", (event) => {
+  if (event.target.classList.contains("details-backdrop")) {
+    state.detailsOpen = false;
+    render(state.snapshot || {}, { preserveWorkshop: true });
+  }
+});
 $("workshop-toggle").addEventListener("click", () => {
   state.workshopOpen = !state.workshopOpen;
   if (state.workshopOpen && !state.workshopLoaded) loadContent();
@@ -686,7 +876,9 @@ $("workshop-save-btn").addEventListener("click", saveContent);
 $("workshop-reset-btn").addEventListener("click", resetContent);
 $("attempt-breakthrough-btn").addEventListener("click", () => api("/api/breakthrough"));
 $("skip-breakthrough-btn").addEventListener("click", () => api("/api/skip_breakthrough"));
+$("skip-preparation-btn").addEventListener("click", () => api("/api/preparation/skip"));
 initBackground();
 refresh();
 loadContent();
+loadRecords(true);
 setInterval(refresh, 1800);

@@ -4,12 +4,15 @@ typedef enum {
     UI_PHASE_BATTLE_RESULT,
     UI_PHASE_REWARD_CHOICE,
     UI_PHASE_REWARD_REPLACE,
+    UI_PHASE_HEART_DEMON_CHOICE,
     UI_PHASE_BREAKTHROUGH_CHOICE,
     UI_PHASE_TALENT_CHOICE,
+    UI_PHASE_PREPARATION,
     UI_PHASE_ROUTE_CHOICE,
     UI_PHASE_NEAR_DEATH_CHOICE,
     UI_PHASE_ENCOUNTER,
     UI_PHASE_BETWEEN_BATTLES,
+    UI_PHASE_VICTORY,
     UI_PHASE_DEFEAT
 } UIPhase;
 
@@ -45,6 +48,19 @@ typedef enum {
     UI_BOSS_OPENING
 } UIBossPhase;
 
+typedef enum {
+    UI_ROUTE_SPECIAL_NONE,
+    UI_ROUTE_SPECIAL_SWORD_TRIAL,
+    UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN,
+    UI_ROUTE_SPECIAL_GHOST_MARKET_RITE
+} UIRouteSpecialRule;
+
+typedef enum {
+    UI_HEART_STEADY,
+    UI_HEART_RISKY,
+    UI_HEART_SUPPRESS
+} UIHeartDemonMode;
+
 typedef struct {
     const char *title;
     const char *desc;
@@ -55,6 +71,7 @@ typedef struct {
     RewardChoice immediate_reward;
     int hp_cost_pct;
     int cultivation_cost;
+    UIRouteSpecialRule special_rule;
 } UIRouteTemplate;
 
 typedef struct {
@@ -66,12 +83,31 @@ static UIPhase g_ui_phase = UI_PHASE_RUN_START;
 static RewardChoice g_ui_pending_rewards[REWARD_CHOICE_COUNT];
 static RewardChoice g_ui_pending_replacement_reward;
 static UIReplacementType g_ui_replacement_type = UI_REPLACE_NONE;
+static UIPhase g_ui_replacement_return_phase = UI_PHASE_RUN_START;
 static int g_ui_replacement_slot_count = 0;
 static int g_ui_replacement_action_type = ACTION_TYPE_NONE;
 static UIRouteOption g_ui_route_options[REWARD_CHOICE_COUNT];
 static TalentID g_ui_talent_options[REWARD_CHOICE_COUNT];
 static UIRouteTemplate g_ui_next_route;
 static bool g_ui_has_next_route = false;
+static int g_ui_last_route_template_id = -1;
+static int g_ui_route_streak = 0;
+static int g_ui_sword_tomb_chain = 0;
+static int g_ui_beast_den_chain = 0;
+static int g_ui_ghost_market_chain = 0;
+static int g_ui_calamity_debt = 0;
+static int g_ui_age = 0;
+static int g_ui_last_years_elapsed = 0;
+static int g_ui_tribulation_pressure = 0;
+static bool g_ui_has_reborn = false;
+static char g_ui_ending_type[32] = "";
+static char g_ui_ending_title[64] = "";
+static char g_ui_ending_summary[256] = "";
+static int g_ui_chronicle_age[16];
+static char g_ui_chronicle_realm[16][32];
+static char g_ui_chronicle_kind[16][24];
+static char g_ui_chronicle_text[16][256];
+static int g_ui_chronicle_count = 0;
 static bool g_ui_breakthrough_offered = false;
 static bool g_ui_near_death_can_ghost = false;
 static int g_ui_near_death_ghost_chance = 0;
@@ -96,32 +132,46 @@ static const char *g_ui_last_encounter_text = "";
 
 static void UI_RunEncounter(void) __attribute__((unused));
 static bool UI_TryInsightSkill(RewardRarity rarity, bool bypass, const char *source);
+static void UI_AddLog(const char *message);
+static void UI_AddCombatFeed(const char *side, const char *kind, const char *message);
 
 static const UIRouteTemplate UI_ROUTE_TEMPLATES[] = {
     {"清修山径", "沿灵脉缓行，适合沉淀修为。", "低风险", 0, -1, UI_ROUTE_REWARD_CULTIVATION,
-     {REWARD_CULTIVATION, RARITY_COMMON, 0, 8, false}, 0, 0},
+     {REWARD_CULTIVATION, RARITY_COMMON, 0, 8, false}, 0, 0, UI_ROUTE_SPECIAL_NONE},
     {"坊市交易", "散修摊位真假难辨，但补给充足。", "低风险", 0, -1, UI_ROUTE_REWARD_ELIXIR,
-     {REWARD_ELIXIR, RARITY_COMMON, ELIXIR_QI, 1, false}, 0, 0},
+     {REWARD_ELIXIR, RARITY_COMMON, ELIXIR_QI, 1, false}, 0, 0, UI_ROUTE_SPECIAL_NONE},
     {"妖兽巢穴", "妖气盘踞，战利品也更丰厚。", "高风险", 2, 1, UI_ROUTE_REWARD_ARTIFACT,
-     {REWARD_CULTIVATION, RARITY_RARE, 0, 12, false}, 10, 0},
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 12, false}, 10, 0, UI_ROUTE_SPECIAL_NONE},
     {"古修洞府", "残缺传承仍有余韵，可能指向新的功法。", "中风险", 1, 0, UI_ROUTE_REWARD_SKILL,
-     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 0, 4},
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 0, 4, UI_ROUTE_SPECIAL_NONE},
     {"天劫残云", "劫雷未散，危险与破境机缘并存。", "高风险", 2, 1, UI_ROUTE_REWARD_THUNDER,
-     {REWARD_ELIXIR, RARITY_RARE, ELIXIR_BREAKTHROUGH, 1, false}, 15, 0},
+     {REWARD_ELIXIR, RARITY_RARE, ELIXIR_BREAKTHROUGH, 1, false}, 15, 0, UI_ROUTE_SPECIAL_NONE},
     {"无名剑冢", "断剑沉埋于荒丘，剑意仍在择主。", "中风险", 1, 0, UI_ROUTE_REWARD_SWORD,
-     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 8, 0},
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 8, 0, UI_ROUTE_SPECIAL_NONE},
 };
 
 static const int UI_ROUTE_TEMPLATE_COUNT = (int)(sizeof(UI_ROUTE_TEMPLATES) / sizeof(UI_ROUTE_TEMPLATES[0]));
 
 static const UIRouteTemplate UI_GHOST_ROUTE_TEMPLATES[] = {
     {"还阳坛", "残破祭坛以阴火照骨，足够修为可换回肉身。", "还阳", 1, 0, UI_ROUTE_REWARD_REBIRTH,
-     {REWARD_CULTIVATION, RARITY_RARE, 0, 8, false}, 0, 0},
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 8, false}, 0, 0, UI_ROUTE_SPECIAL_NONE},
     {"阴市", "纸灯照着幽暗街巷，鬼商兜售丹药与魂契。", "幽冥", 1, 0, UI_ROUTE_REWARD_ELIXIR,
-     {REWARD_ELIXIR, RARITY_RARE, ELIXIR_CLEAR_MIND, 1, false}, 0, 0},
+     {REWARD_ELIXIR, RARITY_RARE, ELIXIR_CLEAR_MIND, 1, false}, 0, 0, UI_ROUTE_SPECIAL_NONE},
     {"乱葬岗", "野坟间鬼火浮动，残魂记得许多失传招式。", "凶险", 2, 1, UI_ROUTE_REWARD_GHOST,
-     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 8, 0},
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 10, false}, 8, 0, UI_ROUTE_SPECIAL_NONE},
 };
+
+static const UIRouteTemplate UI_SPECIAL_ROUTE_SWORD_TRIAL =
+    {"剑修试炼", "剑冢剑意连成杀阵，唯有正面破阵才能取走真传。", "试炼", 2, 1, UI_ROUTE_REWARD_SWORD,
+     {REWARD_CULTIVATION, RARITY_EPIC, 0, 16, false}, 12, 0, UI_ROUTE_SPECIAL_SWORD_TRIAL};
+
+static const UIRouteTemplate UI_SPECIAL_ROUTE_BLOOD_BEAST =
+    {"血煞兽窟", "连续深入兽巢后，血煞妖王盘踞于灵材矿脉之上。", "凶险", 2, 1, UI_ROUTE_REWARD_ARTIFACT,
+     {REWARD_CULTIVATION, RARITY_RARE, 0, 18, false}, 12, 0, UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN};
+
+static const UIRouteTemplate UI_SPECIAL_ROUTE_GHOST_MARKET =
+    {"阴市法会", "阴市灯火连成法会，鬼商愿以更低代价牵引还阳机缘。", "幽冥", 1, 0, UI_ROUTE_REWARD_REBIRTH,
+     {REWARD_CULTIVATION, RARITY_EPIC, 0, 12, false}, 0, 0, UI_ROUTE_SPECIAL_GHOST_MARKET_RITE};
 
 static const int UI_GHOST_ROUTE_TEMPLATE_COUNT = (int)(sizeof(UI_GHOST_ROUTE_TEMPLATES) / sizeof(UI_GHOST_ROUTE_TEMPLATES[0]));
 
@@ -136,12 +186,15 @@ static const char *UI_PhaseName(UIPhase phase)
     case UI_PHASE_BATTLE_RESULT: return "battle_result";
     case UI_PHASE_REWARD_CHOICE: return "reward_choice";
     case UI_PHASE_REWARD_REPLACE: return "reward_replace";
+    case UI_PHASE_HEART_DEMON_CHOICE: return "heart_demon_choice";
     case UI_PHASE_BREAKTHROUGH_CHOICE: return "breakthrough_choice";
     case UI_PHASE_TALENT_CHOICE: return "talent_choice";
+    case UI_PHASE_PREPARATION: return "preparation";
     case UI_PHASE_ROUTE_CHOICE: return "route_choice";
     case UI_PHASE_NEAR_DEATH_CHOICE: return "near_death_choice";
     case UI_PHASE_ENCOUNTER: return "encounter";
     case UI_PHASE_BETWEEN_BATTLES: return "between_battles";
+    case UI_PHASE_VICTORY: return "victory";
     case UI_PHASE_DEFEAT: return "defeat";
     default: return "run_start";
     }
@@ -254,7 +307,7 @@ static int UI_BreakthroughChance(const Player *player)
         chance += 10;
     if (Player_HasTalent(player, TALENT_THUNDER_AFFINITY))
         chance += 8;
-    chance += Player_ArtifactIntBonus(player, ArtifactBreakthroughPct);
+    chance += Player_ArtifactEffectiveIntBonus(player, ArtifactBreakthroughPct);
     chance += player->breakthrough_bonus;
     if (chance < 20) chance = 20;
     if (chance > 90) chance = 90;
@@ -265,6 +318,206 @@ static bool UI_CanBreakthrough(const Player *player)
 {
     int cost = UI_BreakthroughCost(player);
     return cost > 0 && player->cultivation >= cost;
+}
+
+static int UI_LifespanForRealm(XIUWEI realm)
+{
+    switch (realm)
+    {
+    case MORTAL: return 70;
+    case REFINING: return 200;
+    case FOUNDATION: return 350;
+    case CORE_FORM: return 650;
+    case NASCENT_SOUL: return 1200;
+    case SEVERING: return 2400;
+    case REFINEMENT: return 4800;
+    case UNITY: return 9000;
+    case GREAT: return 16000;
+    case ASCENSION:
+    case IMMORTAL:
+    default: return 999999;
+    }
+}
+
+static const char *UI_LifePressureLabel(void)
+{
+    int remain = UI_LifespanForRealm(YOU.XIUWEI) - g_ui_age;
+    if (YOU.soul_state == SOUL_GHOST)
+    {
+        if (remain <= 10)
+            return "魂火将熄";
+        if (remain <= 30)
+            return "魂火微弱";
+        return "阴寿未尽";
+    }
+    if (remain <= 5)
+        return "寿元将尽";
+    if (remain <= 20)
+        return "寿元紧迫";
+    if (remain <= 60)
+        return "需谋突破";
+    return "寿元尚宽";
+}
+
+static const char *UI_TribulationLabel(void)
+{
+    if (g_ui_tribulation_pressure >= 12)
+        return "雷劫迫近";
+    if (g_ui_tribulation_pressure >= 8)
+        return "劫云压顶";
+    if (g_ui_tribulation_pressure >= 4)
+        return "劫意渐生";
+    return "天机平稳";
+}
+
+static const char *UI_TribulationHint(void)
+{
+    if (g_ui_tribulation_pressure >= 12)
+        return "雷劫压力极高，Boss 与天劫路线会明显更危险。";
+    if (g_ui_tribulation_pressure >= 8)
+        return "劫云已厚，高风险路线收益提高但反噬更重。";
+    if (g_ui_tribulation_pressure >= 4)
+        return "天机开始偏移，可用清修或雷劫亲和压住压力。";
+    return "雷劫尚远，可以按构筑节奏择路。";
+}
+
+static int UI_TribulationBossRealmBonus(void)
+{
+    int next_battle = g_run.battle_index + 1;
+    if (next_battle <= 0 || next_battle % 6 != 0)
+        return 0;
+    return g_ui_tribulation_pressure / 8;
+}
+
+static void UI_AddChronicle(const char *kind, const char *text)
+{
+    if (!text || !text[0])
+        return;
+    int index;
+    if (g_ui_chronicle_count < 16)
+    {
+        index = g_ui_chronicle_count++;
+    }
+    else
+    {
+        memmove(g_ui_chronicle_age, g_ui_chronicle_age + 1, sizeof(g_ui_chronicle_age[0]) * 15);
+        memmove(g_ui_chronicle_realm, g_ui_chronicle_realm + 1, sizeof(g_ui_chronicle_realm[0]) * 15);
+        memmove(g_ui_chronicle_kind, g_ui_chronicle_kind + 1, sizeof(g_ui_chronicle_kind[0]) * 15);
+        memmove(g_ui_chronicle_text, g_ui_chronicle_text + 1, sizeof(g_ui_chronicle_text[0]) * 15);
+        index = 15;
+    }
+    g_ui_chronicle_age[index] = g_ui_age;
+    snprintf(g_ui_chronicle_realm[index], sizeof(g_ui_chronicle_realm[index]), "%s", Realm[YOU.XIUWEI]);
+    snprintf(g_ui_chronicle_kind[index], sizeof(g_ui_chronicle_kind[index]), "%s", kind ? kind : "event");
+    snprintf(g_ui_chronicle_text[index], sizeof(g_ui_chronicle_text[index]), "%s", text);
+}
+
+static void UI_SetEnding(const char *type, const char *title, const char *summary)
+{
+    snprintf(g_ui_ending_type, sizeof(g_ui_ending_type), "%s", type ? type : "defeat");
+    snprintf(g_ui_ending_title, sizeof(g_ui_ending_title), "%s", title ? title : "道途暂止");
+    snprintf(g_ui_ending_summary, sizeof(g_ui_ending_summary), "%s", summary ? summary : "");
+    UI_AddChronicle(type ? type : "ending", title ? title : "道途暂止");
+    g_ui_phase = (type && strcmp(type, "ascension") == 0) ? UI_PHASE_VICTORY : UI_PHASE_DEFEAT;
+}
+
+static bool UI_CheckAscensionVictory(void)
+{
+    if (YOU.XIUWEI >= ASCENSION)
+    {
+        UI_SetEnding("ascension", "羽化飞升", "劫尽道成，飞升上界。本次修行圆满结束。");
+        UI_AddCombatFeed("system", "victory", "羽化飞升，道途圆满。");
+        return true;
+    }
+    return false;
+}
+
+static bool UI_CheckLifespanEnd(void)
+{
+    int lifespan = UI_LifespanForRealm(YOU.XIUWEI);
+    if (g_ui_age < lifespan)
+        return false;
+    UI_SetEnding(YOU.soul_state == SOUL_GHOST ? "soul_decay" : "lifespan",
+                 YOU.soul_state == SOUL_GHOST ? "魂火衰败" : "寿尽坐化",
+                 YOU.soul_state == SOUL_GHOST ? "阴寿已尽，魂火无声散入夜色。" : "寿元耗尽，坐化于漫长道途之中。");
+    UI_AddCombatFeed("system", "defeat", YOU.soul_state == SOUL_GHOST ? "魂火衰败，阴寿已尽。" : "寿元耗尽，道途止步。");
+    return true;
+}
+
+static int UI_RouteYearAdvance(const UIRouteTemplate *route)
+{
+    int yuan = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+    int base = 3 + yuan * 2;
+    int variance = 3 + yuan;
+    if (base > 80)
+        base = 80 + yuan / 4;
+    if (variance > 40)
+        variance = 40;
+    int years = base + (int)(Run_Rand() % variance);
+    if (route)
+    {
+        if (route->reward_bias == UI_ROUTE_REWARD_CULTIVATION || route->reward_bias == UI_ROUTE_REWARD_SKILL)
+            years += 2 + yuan / 2;
+        if (route->risk >= 2)
+            years -= 1 + yuan / 4;
+        if (route->special_rule != UI_ROUTE_SPECIAL_NONE)
+            years += 2;
+    }
+    if (YOU.XIUWEI == MORTAL && years > 10)
+        years = 10;
+    if (years < 3)
+        years = 3;
+    return years;
+}
+
+static int UI_RouteYearPreview(const UIRouteTemplate *route)
+{
+    int yuan = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+    int base = 3 + yuan * 2;
+    if (base > 80)
+        base = 80 + yuan / 4;
+    int years = base + (3 + yuan) / 2;
+    if (route)
+    {
+        if (route->reward_bias == UI_ROUTE_REWARD_CULTIVATION || route->reward_bias == UI_ROUTE_REWARD_SKILL)
+            years += 2 + yuan / 2;
+        if (route->risk >= 2)
+            years -= 1 + yuan / 4;
+        if (route->special_rule != UI_ROUTE_SPECIAL_NONE)
+            years += 2;
+    }
+    if (YOU.XIUWEI == MORTAL && years > 10)
+        years = 10;
+    if (years < 3)
+        years = 3;
+    return years;
+}
+
+static void UI_AdvanceYearsForRoute(const UIRouteTemplate *route)
+{
+    g_ui_last_years_elapsed = UI_RouteYearAdvance(route);
+    g_ui_age += g_ui_last_years_elapsed;
+    int delta = YOU.XIUWEI / 2;
+    if (route)
+    {
+        if (route->risk >= 2)
+            delta += 2;
+        else if (route->risk <= 0)
+            delta -= 1;
+        if (route->reward_bias == UI_ROUTE_REWARD_THUNDER)
+            delta += 2;
+        if (route->reward_bias == UI_ROUTE_REWARD_CULTIVATION)
+            delta -= 1;
+    }
+    if (Player_HasTalent(&YOU, TALENT_THUNDER_AFFINITY) && delta > 0)
+        delta--;
+    g_ui_tribulation_pressure += delta;
+    if (g_ui_tribulation_pressure < 0)
+        g_ui_tribulation_pressure = 0;
+    char message[192];
+    snprintf(message, sizeof(message), "闭关行走 %d 年，年岁至 %d。", g_ui_last_years_elapsed, g_ui_age);
+    UI_AddLog(message);
+    UI_AddChronicle("time", message);
 }
 
 static int UI_EffectiveRouteHpCostPct(const UIRouteTemplate *route)
@@ -312,6 +565,55 @@ static const char *UI_RouteBiasName(UIRouteRewardBias bias)
     }
 }
 
+static const char *UI_RouteSpecialName(UIRouteSpecialRule rule)
+{
+    switch (rule)
+    {
+    case UI_ROUTE_SPECIAL_SWORD_TRIAL: return "剑修试炼";
+    case UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN: return "血煞兽窟";
+    case UI_ROUTE_SPECIAL_GHOST_MARKET_RITE: return "阴市法会";
+    case UI_ROUTE_SPECIAL_NONE:
+    default: return "";
+    }
+}
+
+static const char *UI_RouteSpecialHint(UIRouteSpecialRule rule)
+{
+    switch (rule)
+    {
+    case UI_ROUTE_SPECIAL_SWORD_TRIAL: return "胜利后更容易获得剑修真传。";
+    case UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN: return "胜利后灵材更多，法器与血道收益更明显。";
+    case UI_ROUTE_SPECIAL_GHOST_MARKET_RITE: return "还阳成本降低，否则转为护魂补给。";
+    case UI_ROUTE_SPECIAL_NONE:
+    default: return "无特殊规则。";
+    }
+}
+
+static int UI_RouteDebtDelta(const UIRouteTemplate *route)
+{
+    if (!route)
+        return 0;
+    if (route->risk <= 0)
+        return -1;
+    if (route->risk >= 2)
+        return 2;
+    return 1;
+}
+
+static int UI_RoutePredictedDebt(const UIRouteTemplate *route)
+{
+    int value = g_ui_calamity_debt + UI_RouteDebtDelta(route);
+    return value < 0 ? 0 : value;
+}
+
+static int UI_BossDebtRealmBonus(void)
+{
+    int next_battle = g_run.battle_index + 1;
+    if (next_battle > 0 && next_battle % 6 == 0)
+        return g_ui_calamity_debt / 3 + UI_TribulationBossRealmBonus();
+    return 0;
+}
+
 static int UI_ClampRealm(int realm)
 {
     if (realm < MORTAL)
@@ -326,7 +628,7 @@ static int UI_NextEnemyRealm(void)
     int next_battle = g_run.battle_index + 1;
     int offset = g_ui_has_next_route ? g_ui_next_route.realm_offset : 0;
     if (next_battle > 0 && next_battle % 6 == 0)
-        offset += 1;
+        offset += 1 + UI_BossDebtRealmBonus();
     return UI_ClampRealm((int)YOU.XIUWEI + offset);
 }
 
@@ -339,7 +641,7 @@ static int UI_BattleCultivationGain(void)
         gain += Yuan[YOU.XIUWEI];
     if (Player_HasTalent(&YOU, TALENT_ALCHEMY_RESIDUE))
         gain += 1;
-    gain += Player_ArtifactIntBonus(&YOU, ArtifactPostBattleCultivation);
+    gain += Player_ArtifactEffectiveIntBonus(&YOU, ArtifactPostBattleCultivation);
     return gain;
 }
 
@@ -497,8 +799,10 @@ static int UI_RespecSkillCost(SkillID id)
 static bool UI_CanManageSkills(void)
 {
     return g_ui_phase == UI_PHASE_ROUTE_CHOICE ||
+           g_ui_phase == UI_PHASE_PREPARATION ||
            g_ui_phase == UI_PHASE_BETWEEN_BATTLES ||
            g_ui_phase == UI_PHASE_BREAKTHROUGH_CHOICE ||
+           g_ui_phase == UI_PHASE_HEART_DEMON_CHOICE ||
            g_ui_phase == UI_PHASE_TALENT_CHOICE ||
            g_ui_phase == UI_PHASE_REWARD_CHOICE;
 }
@@ -746,8 +1050,10 @@ static void UI_PrintPlayerJSON(const char *key, const Player *player)
 {
     printf("\"%s\":{\"name\":\"", key);
     UI_PrintEscaped(player->name);
-    printf("\",\"hp\":%d,\"max_hp\":%d,\"qi\":%d,\"max_qi\":%d,\"atk\":%d,\"yuan\":%d,\"cultivation\":%d,\"realm\":\"",
-           player->HP, Player_MaxHP(player), player->QI, Player_MaxQI(player), player->ATK, player->YUAN, player->cultivation);
+    printf("\",\"hp\":%d,\"max_hp\":%d,\"qi\":%d,\"max_qi\":%d,\"atk\":%d,\"yuan\":%d,\"cultivation\":%d,\"minor_understanding\":%d,\"minor_threshold\":%d,\"minor_realm_level\":%d,\"minor_bonus_pct\":%d,\"realm\":\"",
+           player->HP, Player_MaxHP(player), player->QI, Player_MaxQI(player), player->ATK, player->YUAN,
+           player->cultivation, player->minor_understanding, RPG_MinorRealmThreshold(player),
+           player->minor_realm_level, RPG_MinorRealmBonusPct(player));
     UI_PrintEscaped(Realm[player->XIUWEI]);
     printf("\",\"realm_id\":%d,\"root\":\"", player->XIUWEI);
     UI_PrintEscaped(CHN_Root_Names[player->root]);
@@ -850,9 +1156,17 @@ static void UI_PrintNextBattleJSON(void)
     UI_PrintEscaped(g_ui_has_next_route ? g_ui_next_route.title : "未择路线");
     printf("\",\"reward_bias\":\"");
     UI_PrintEscaped(g_ui_has_next_route ? UI_RouteBiasName(g_ui_next_route.reward_bias) : "均衡");
+    printf("\",\"calamity_debt\":%d,\"debt_realm_bonus\":%d,\"tribulation_pressure\":%d,\"special_rule\":\"",
+           g_ui_calamity_debt, UI_BossDebtRealmBonus(), g_ui_tribulation_pressure);
+    UI_PrintEscaped(g_ui_has_next_route ? UI_RouteSpecialName(g_ui_next_route.special_rule) : "");
     printf("\",\"threat\":\"");
     if (g_ui_has_next_route)
-        UI_PrintEscaped(g_ui_next_route.desc);
+    {
+        char threat[256];
+        snprintf(threat, sizeof(threat), "%s 劫气 %d，雷劫%s%s", g_ui_next_route.desc, g_ui_calamity_debt,
+                 UI_TribulationLabel(), UI_BossDebtRealmBonus() > 0 ? "，Boss 境界受压力抬升。" : "。");
+        UI_PrintEscaped(threat);
+    }
     else
         UI_PrintEscaped(UI_NextBattleThreatText(next_battle));
     printf("\"}");
@@ -873,6 +1187,61 @@ static void UI_PrintBreakthroughJSON(void)
     printf("\",\"cultivation\":%d}", YOU.cultivation);
 }
 
+static void UI_PrintHeartDemonOptionJSON(int index, UIHeartDemonMode mode)
+{
+    int base_cost = UI_BreakthroughCost(&YOU);
+    int cost = base_cost;
+    int chance = UI_BreakthroughChance(&YOU);
+    const char *key = "steady";
+    const char *title = "稳妥突破";
+    const char *desc = "多耗修为压住心魔，成功率更高，失败损伤更轻。";
+    if (mode == UI_HEART_STEADY)
+    {
+        cost = base_cost * 5 / 4;
+        chance += 10;
+    }
+    else if (mode == UI_HEART_RISKY)
+    {
+        key = "risky";
+        title = "冒险突破";
+        desc = "以较少修为冲关，成功后理解更深，失败反噬更重。";
+        cost = base_cost * 3 / 4;
+        chance -= 15;
+    }
+    else if (mode == UI_HEART_SUPPRESS)
+    {
+        key = "suppress";
+        title = "压境不破";
+        desc = "暂不突破，沉淀理解，但劫气随压境而涨。";
+        cost = 0;
+    }
+    if (chance < 5) chance = 5;
+    if (chance > 95) chance = 95;
+    printf("{\"index\":%d,\"mode\":\"", index);
+    UI_PrintEscaped(key);
+    printf("\",\"title\":\"");
+    UI_PrintEscaped(title);
+    printf("\",\"desc\":\"");
+    UI_PrintEscaped(desc);
+    printf("\",\"cost\":%d,\"chance\":%d,\"available\":%s}", cost, chance,
+           YOU.cultivation >= cost ? "true" : "false");
+}
+
+static void UI_PrintHeartDemonJSON(void)
+{
+    printf("\"heart_demon\":{\"active\":%s,\"options\":[",
+           g_ui_phase == UI_PHASE_HEART_DEMON_CHOICE ? "true" : "false");
+    if (g_ui_phase == UI_PHASE_HEART_DEMON_CHOICE)
+    {
+        UI_PrintHeartDemonOptionJSON(0, UI_HEART_STEADY);
+        printf(",");
+        UI_PrintHeartDemonOptionJSON(1, UI_HEART_RISKY);
+        printf(",");
+        UI_PrintHeartDemonOptionJSON(2, UI_HEART_SUPPRESS);
+    }
+    printf("]}");
+}
+
 static void UI_PrintRouteChoiceJSON(void)
 {
     printf("\"route_options\":[");
@@ -882,7 +1251,13 @@ static void UI_PrintRouteChoiceJSON(void)
         const UIRouteTemplate *route = &g_ui_route_options[i].data;
         int next_battle = g_run.battle_index + 1;
         int enemy_realm = UI_ClampRealm((int)YOU.XIUWEI + route->realm_offset +
-                                        ((next_battle > 0 && next_battle % 6 == 0) ? 1 : 0));
+                                        ((next_battle > 0 && next_battle % 6 == 0) ? 1 + UI_BossDebtRealmBonus() : 0));
+        int material_spirit = 2 + (route->reward_bias == UI_ROUTE_REWARD_ARTIFACT || route->reward_bias == UI_ROUTE_REWARD_SWORD || route->reward_bias == UI_ROUTE_REWARD_THUNDER ? 2 : 0) + (route->special_rule == UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN ? 3 : 0);
+        int material_herb = 1 + (route->reward_bias == UI_ROUTE_REWARD_ELIXIR || route->reward_bias == UI_ROUTE_REWARD_REBIRTH ? 2 : 0);
+        int years = UI_RouteYearPreview(route);
+        int predicted_age = g_ui_age + years;
+        int predicted_pressure = g_ui_tribulation_pressure + (route->risk >= 2 ? 2 : (route->risk <= 0 ? -1 : 0)) + YOU.XIUWEI / 2;
+        if (predicted_pressure < 0) predicted_pressure = 0;
         printf("{\"index\":%d,\"title\":\"", i);
         UI_PrintEscaped(route->title);
         printf("\",\"desc\":\"");
@@ -893,8 +1268,16 @@ static void UI_PrintRouteChoiceJSON(void)
         UI_PrintEscaped(Realm[enemy_realm]);
         printf("\",\"enemy_realm_id\":%d,\"reward_bias\":\"", enemy_realm);
         UI_PrintEscaped(UI_RouteBiasName(route->reward_bias));
-        printf("\",\"hp_cost_pct\":%d,\"cultivation_cost\":%d,\"immediate_reward\":",
-               UI_EffectiveRouteHpCostPct(route), route->cultivation_cost);
+        printf("\",\"hp_cost_pct\":%d,\"cultivation_cost\":%d,\"debt_delta\":%d,\"predicted_debt\":%d,\"special_rule\":\"",
+               UI_EffectiveRouteHpCostPct(route), route->cultivation_cost,
+               UI_RouteDebtDelta(route), UI_RoutePredictedDebt(route));
+        UI_PrintEscaped(UI_RouteSpecialName(route->special_rule));
+        printf("\",\"special_hint\":\"");
+        UI_PrintEscaped(UI_RouteSpecialHint(route->special_rule));
+        printf("\",\"material_preview\":\"灵材 +%d / 药材 +%d\",\"years_preview\":%d,\"predicted_age\":%d,\"predicted_tribulation\":%d,\"enemy_hint\":\"",
+               material_spirit, material_herb, years, predicted_age, predicted_pressure);
+        UI_PrintEscaped(enemy_realm > (int)YOU.XIUWEI ? "敌人境界更高，建议备好防御或遁逃手段。" : "敌人境界可控，适合推进构筑。");
+        printf("\",\"immediate_reward\":");
         UI_PrintRewardJSON(&route->immediate_reward, i);
         printf("}");
     }
@@ -943,6 +1326,30 @@ static void UI_PrintNearDeathJSON(void)
     printf("]}");
 }
 
+static void UI_PrintCraftingJSON(void)
+{
+    printf("\"crafting\":{\"recipes\":[");
+    for (int i = 0; i < Alchemy_RecipeCount(); i++)
+    {
+        const AlchemyRecipe *recipe = Alchemy_GetRecipe(i);
+        if (!recipe)
+            continue;
+        if (i) printf(",");
+        const Elixir *elixir = &g_elixir_database[recipe->elixir_id];
+        printf("{\"index\":%d,\"id\":%d,\"name\":\"", recipe->index, recipe->elixir_id);
+        UI_PrintEscaped(elixir->name_chn ? elixir->name_chn : recipe->name);
+        printf("\",\"desc\":\"");
+        UI_PrintEscaped(elixir->desc_chn ? elixir->desc_chn : "炼制丹药。");
+        printf("\",\"cost\":%d,\"required_realm\":\"", recipe->herb_cost);
+        UI_PrintEscaped(Realm[recipe->required_realm]);
+        printf("\",\"unlocked\":%s,\"can_brew\":%s,\"custom\":%s}",
+               Alchemy_RecipeUnlocked(&YOU, recipe) ? "true" : "false",
+               Alchemy_CanBrew(&YOU, recipe) ? "true" : "false",
+               elixir->is_custom ? "true" : "false");
+    }
+    printf("]}");
+}
+
 static void UI_PrintSkillTreeJSON(void)
 {
     printf("\"skill_tree\":{\"can_respec\":%s,\"skills\":[", UI_CanManageSkills() ? "true" : "false");
@@ -960,14 +1367,26 @@ static void UI_PrintSkillTreeJSON(void)
                         YOU.equipped_skills[skill->action_type] == skill->skill_id;
         char effect_summary[192];
         SkillEffectSummary(skill, effect_summary, sizeof(effect_summary));
+        char refine_summary[160];
+        SkillRefineSummary(&YOU, skill, refine_summary, sizeof(refine_summary));
+        int mastery_level = RPG_MasteryLevel(&YOU, skill->skill_id);
+        int mastery_xp = YOU.skill_mastery[skill->skill_id];
+        int mastery_next = RPG_MasteryNextThreshold(&YOU, skill->skill_id);
+        int refine_cost = Skill_RefineCost(&YOU, skill);
         printf("{\"id\":%d,\"name\":\"", skill->skill_id);
         UI_PrintEscaped(skill->name_chn);
         printf("\",\"action_type\":%d,\"action\":\"", skill->action_type);
         UI_PrintEscaped(UI_ActionName(skill->action_type));
         printf("\",\"school\":\"");
         UI_PrintEscaped(SchoolTagName(skill->school_tag));
-        printf("\",\"rank\":%d,\"cost\":%d,\"qi_cost\":%d,\"equipped\":%s,\"bypassed\":%s,\"custom\":%s,\"desc\":\"",
+        printf("\",\"rank\":%d,\"cost\":%d,\"qi_cost\":%d,\"effective_qi_cost\":%d,\"refine_cost\":%d,\"refine\":\"",
                skill->rank, UI_RespecSkillCost(skill->skill_id), skill->cost,
+               Skill_EffectiveCostForPlayer(&YOU, skill), refine_cost);
+        UI_PrintEscaped(SkillRefineName(Player_SkillRefine(&YOU, skill->skill_id)));
+        printf("\",\"refine_summary\":\"");
+        UI_PrintEscaped(refine_summary);
+        printf("\",\"mastery_level\":%d,\"mastery_xp\":%d,\"mastery_next\":%d,\"equipped\":%s,\"bypassed\":%s,\"custom\":%s,\"desc\":\"",
+               mastery_level, mastery_xp, mastery_next,
                equipped ? "true" : "false",
                YOU.bypassed_prereq_skills[skill->skill_id] ? "true" : "false",
                skill->is_custom ? "true" : "false");
@@ -977,6 +1396,28 @@ static void UI_PrintSkillTreeJSON(void)
         printf("\"}");
     }
     printf("]}");
+}
+
+static void UI_PrintSchoolCyclesJSON(void)
+{
+    printf("\"school_cycles\":[");
+    bool first = true;
+    for (int i = 1; i < TOTAL_SCHOOLS; i++)
+    {
+        int value = YOU.school_cycle[i];
+        if (value <= 0)
+            continue;
+        if (!first) printf(",");
+        first = false;
+        char summary[96];
+        RPG_SchoolCycleSummary(&YOU, (SchoolTag)i, summary, sizeof(summary));
+        printf("{\"school\":\"");
+        UI_PrintEscaped(SchoolTagName((SchoolTag)i));
+        printf("\",\"value\":%d,\"threshold\":%d,\"summary\":\"", value, RPG_SchoolCycleThreshold((SchoolTag)i));
+        UI_PrintEscaped(summary);
+        printf("\"}");
+    }
+    printf("]");
 }
 
 static void UI_PrintCombatFeedJSON(void)
@@ -996,6 +1437,64 @@ static void UI_PrintCombatFeedJSON(void)
     printf("]");
 }
 
+static void UI_PrintLifeJSON(void)
+{
+    int lifespan = UI_LifespanForRealm(YOU.XIUWEI);
+    int remaining = lifespan - g_ui_age;
+    if (remaining < 0)
+        remaining = 0;
+    printf("\"life\":{\"age\":%d,\"lifespan\":%d,\"years_remaining\":%d,\"last_years_elapsed\":%d,\"life_pressure_label\":\"",
+           g_ui_age, lifespan, remaining, g_ui_last_years_elapsed);
+    UI_PrintEscaped(UI_LifePressureLabel());
+    printf("\"}");
+}
+
+static void UI_PrintTribulationJSON(void)
+{
+    printf("\"tribulation\":{\"pressure\":%d,\"label\":\"", g_ui_tribulation_pressure);
+    UI_PrintEscaped(UI_TribulationLabel());
+    printf("\",\"boss_modifier\":%d,\"hint\":\"", UI_TribulationBossRealmBonus());
+    UI_PrintEscaped(UI_TribulationHint());
+    printf("\"}");
+}
+
+static void UI_PrintChronicleJSON(void)
+{
+    printf("\"chronicle\":[");
+    for (int i = 0; i < g_ui_chronicle_count; i++)
+    {
+        if (i) printf(",");
+        printf("{\"age\":%d,\"realm\":\"", g_ui_chronicle_age[i]);
+        UI_PrintEscaped(g_ui_chronicle_realm[i]);
+        printf("\",\"kind\":\"");
+        UI_PrintEscaped(g_ui_chronicle_kind[i]);
+        printf("\",\"text\":\"");
+        UI_PrintEscaped(g_ui_chronicle_text[i]);
+        printf("\"}");
+    }
+    printf("]");
+}
+
+static void UI_PrintEndingJSON(void)
+{
+    bool active = g_ui_phase == UI_PHASE_DEFEAT || g_ui_phase == UI_PHASE_VICTORY;
+    printf("\"ending\":{\"active\":%s,\"type\":\"", active ? "true" : "false");
+    UI_PrintEscaped(active ? g_ui_ending_type : "");
+    printf("\",\"title\":\"");
+    UI_PrintEscaped(active ? g_ui_ending_title : "");
+    printf("\",\"summary\":\"");
+    UI_PrintEscaped(active ? g_ui_ending_summary : "");
+    printf("\",\"age\":%d,\"realm\":\"", g_ui_age);
+    UI_PrintEscaped(Realm[YOU.XIUWEI]);
+    printf("\",\"realm_id\":%d,\"battle_index\":%d,\"boss_kills\":%d,\"primary_school\":\"",
+           YOU.XIUWEI, g_run.battle_index, g_run.boss_kills);
+    BuildProfile profile = Player_GetBuildProfile(&YOU);
+    UI_PrintEscaped(SchoolTagName(profile.primary_school));
+    printf("\",\"talent_count\":%d,\"soul_state\":\"", YOU.talent_count);
+    UI_PrintEscaped(UI_SoulStateName(YOU.soul_state));
+    printf("\",\"reborn\":%s}", g_ui_has_reborn ? "true" : "false");
+}
+
 static void UI_PrintSnapshot(void)
 {
     BuildProfile profile = Player_GetBuildProfile(&YOU);
@@ -1004,6 +1503,30 @@ static void UI_PrintSnapshot(void)
     UI_PrintPlayerJSON("player", &YOU);
     printf(",");
     UI_PrintPlayerJSON("enemy", &CPU);
+    printf(",\"materials\":{\"spirit\":%d,\"herbs\":%d}", YOU.spirit_materials, YOU.herb_materials);
+    printf(",");
+    UI_PrintLifeJSON();
+    printf(",");
+    UI_PrintTribulationJSON();
+    printf(",");
+    UI_PrintChronicleJSON();
+    printf(",");
+    UI_PrintEndingJSON();
+    printf(",\"route_meta\":{\"calamity_debt\":%d,\"last_route\":\"", g_ui_calamity_debt);
+    UI_PrintEscaped(g_ui_has_next_route ? g_ui_next_route.title : "未择路线");
+    printf("\",\"route_streak\":%d,\"sword_chain\":%d,\"beast_chain\":%d,\"ghost_market_chain\":%d,\"hint\":\"",
+           g_ui_route_streak, g_ui_sword_tomb_chain, g_ui_beast_den_chain, g_ui_ghost_market_chain);
+    if (g_ui_calamity_debt >= 6)
+        UI_PrintEscaped("劫气深重：奖励更好，但 Boss 会明显变危险。");
+    else if (g_ui_sword_tomb_chain >= 2)
+        UI_PrintEscaped("剑冢剑意相连，可能触发剑修试炼。");
+    else if (g_ui_beast_den_chain >= 2)
+        UI_PrintEscaped("妖兽巢穴气息延伸，血煞兽窟正在成形。");
+    else if (g_ui_ghost_market_chain >= 2)
+        UI_PrintEscaped("阴市因果加深，还阳机会更近。");
+    else
+        UI_PrintEscaped("路线选择会积累连续性与风险债。");
+    printf("\"}");
 
     printf(",\"build\":{\"archetype\":\"");
     UI_PrintEscaped(BuildArchetypeName(&profile));
@@ -1016,7 +1539,9 @@ static void UI_PrintSnapshot(void)
     UI_PrintEscaped(profile.synergy_label);
     printf("\",\"synergy_bonus\":\"");
     UI_PrintEscaped(profile.synergy_bonus);
-    printf("\"}");
+    printf("\",");
+    UI_PrintSchoolCyclesJSON();
+    printf("}");
 
     printf(",\"actions\":[");
     bool first = true;
@@ -1029,13 +1554,22 @@ static void UI_PrintSnapshot(void)
         first = false;
         char effect_summary[192];
         SkillEffectSummary(skill, effect_summary, sizeof(effect_summary));
+        char refine_summary[160];
+        SkillRefineSummary(&YOU, skill, refine_summary, sizeof(refine_summary));
+        int mastery_level = RPG_MasteryLevel(&YOU, skill->skill_id);
+        int mastery_xp = skill->skill_id > SKILL_ID_NONE && skill->skill_id < TOTAL_SKILLS ? YOU.skill_mastery[skill->skill_id] : 0;
+        int mastery_next = RPG_MasteryNextThreshold(&YOU, skill->skill_id);
         printf("{\"slot\":%d,\"action_type\":%d,\"skill_id\":%d,\"name\":\"", i, skill->action_type, skill->skill_id);
         UI_PrintEscaped(skill->name_chn);
-        printf("\",\"cost\":%d,\"rank\":%d,\"school\":\"", skill->cost, skill->rank);
+        printf("\",\"cost\":%d,\"base_cost\":%d,\"rank\":%d,\"school\":\"", Skill_EffectiveCostForPlayer(&YOU, skill), skill->cost, skill->rank);
         UI_PrintEscaped(SchoolTagName(skill->school_tag));
-        printf("\",\"available\":%s,\"custom\":%s,\"effect_summary\":\"", YOU.QI >= skill->cost ? "true" : "false",
-               skill->is_custom ? "true" : "false");
+        printf("\",\"available\":%s,\"custom\":%s,\"mastery_level\":%d,\"mastery_xp\":%d,\"mastery_next\":%d,\"effect_summary\":\"", YOU.QI >= Skill_EffectiveCostForPlayer(&YOU, skill) ? "true" : "false",
+               skill->is_custom ? "true" : "false", mastery_level, mastery_xp, mastery_next);
         UI_PrintEscaped(effect_summary);
+        printf("\",\"refine\":\"");
+        UI_PrintEscaped(SkillRefineName(Player_SkillRefine(&YOU, skill->skill_id)));
+        printf("\",\"refine_summary\":\"");
+        UI_PrintEscaped(refine_summary);
         printf("\"}");
     }
     printf("]");
@@ -1044,8 +1578,19 @@ static void UI_PrintSnapshot(void)
     for (int i = 0; i < YOU.artifact_count; i++)
     {
         ArtifactID id = YOU.artifacts[i];
+        char resonance[96];
+        Artifact_ResonanceSummary(&YOU, i, resonance, sizeof(resonance));
+        int level = Artifact_LevelAtSlot(&YOU, i);
+        int upgrade_cost = Artifact_UpgradeCost(level);
         if (i) printf(",");
-        printf("{\"id\":%d,\"name\":\"", id);
+        printf("{\"slot\":%d,\"id\":%d,\"level\":%d,\"upgrade_cost\":%d,\"can_upgrade\":%s,\"resonance_active\":%s,\"resonance\":\"",
+               i, id, level, upgrade_cost,
+               (upgrade_cost > 0 && YOU.spirit_materials >= upgrade_cost) ? "true" : "false",
+               Artifact_ResonanceActive(&YOU, i) ? "true" : "false");
+        UI_PrintEscaped(resonance);
+        printf("\",\"school\":\"");
+        UI_PrintEscaped(SchoolTagName(g_artifact_database[id].reward_school_bias));
+        printf("\",\"name\":\"");
         UI_PrintEscaped(g_artifact_database[id].name_chn);
         printf("\",\"desc\":\"");
         UI_PrintEscaped(g_artifact_database[id].desc_chn);
@@ -1114,6 +1659,8 @@ static void UI_PrintSnapshot(void)
     printf(",");
     UI_PrintBreakthroughJSON();
     printf(",");
+    UI_PrintHeartDemonJSON();
+    printf(",");
     printf("\"talent_options\":[");
     bool first_talent_option = true;
     for (int i = 0; g_ui_phase == UI_PHASE_TALENT_CHOICE && i < REWARD_CHOICE_COUNT; i++)
@@ -1132,6 +1679,8 @@ static void UI_PrintSnapshot(void)
     UI_PrintNearDeathJSON();
     printf(",");
     UI_PrintSkillTreeJSON();
+    printf(",");
+    UI_PrintCraftingJSON();
     printf("}\n");
     fflush(stdout);
 }
@@ -1230,6 +1779,7 @@ static void UI_ChooseCPUAction(void)
 static void UI_StartBattle(void)
 {
     g_ui_replacement_type = UI_REPLACE_NONE;
+    g_ui_replacement_return_phase = UI_PHASE_RUN_START;
     g_ui_replacement_slot_count = 0;
     g_ui_replacement_action_type = ACTION_TYPE_NONE;
     Game_init(&YOU, &CPU, &game);
@@ -1266,9 +1816,24 @@ static void UI_StartRun(void)
     g_ui_last_elixir_slot = -1;
     g_ui_pending_replacement_reward = (RewardChoice){REWARD_CULTIVATION, RARITY_COMMON, 0, 0, false};
     g_ui_replacement_type = UI_REPLACE_NONE;
+    g_ui_replacement_return_phase = UI_PHASE_RUN_START;
     g_ui_replacement_slot_count = 0;
     g_ui_replacement_action_type = ACTION_TYPE_NONE;
     g_ui_has_next_route = false;
+    g_ui_last_route_template_id = -1;
+    g_ui_route_streak = 0;
+    g_ui_sword_tomb_chain = 0;
+    g_ui_beast_den_chain = 0;
+    g_ui_ghost_market_chain = 0;
+    g_ui_calamity_debt = 0;
+    g_ui_age = 12 + (int)(Run_Rand() % 39);
+    g_ui_last_years_elapsed = 0;
+    g_ui_tribulation_pressure = 0;
+    g_ui_has_reborn = false;
+    g_ui_ending_type[0] = '\0';
+    g_ui_ending_title[0] = '\0';
+    g_ui_ending_summary[0] = '\0';
+    g_ui_chronicle_count = 0;
     g_ui_breakthrough_offered = false;
     g_ui_near_death_can_ghost = false;
     g_ui_near_death_ghost_chance = 0;
@@ -1279,6 +1844,9 @@ static void UI_StartRun(void)
     g_ui_last_encounter_title = "";
     g_ui_last_encounter_text = "";
     UI_AddCombatFeed("system", "info", "踏入修行之路。");
+    char opening[192];
+    snprintf(opening, sizeof(opening), "%d 岁，凡身入道，寿元不过七十。", g_ui_age);
+    UI_AddChronicle("start", opening);
     UI_StartBattle();
 }
 
@@ -1287,10 +1855,11 @@ static int UI_SetPlayerAction(int action_type)
     if (action_type < 0 || action_type >= TOTAL_ACTION_TYPES)
         return 0;
     const Skill *skill = &YOU.learned_skills[action_type];
-    if (skill->skill_id == SKILL_ID_NONE || YOU.QI < skill->cost)
+    int effective_cost = Skill_EffectiveCostForPlayer(&YOU, skill);
+    if (skill->skill_id == SKILL_ID_NONE || YOU.QI < effective_cost)
         return 0;
     YOU.current_action_type = skill->action_type;
-    YOU.QI_change -= skill->cost;
+    YOU.QI_change -= effective_cost;
     char log_message[256];
     snprintf(log_message, sizeof(log_message), skill->prompt_chn, YOU.name);
     UI_AddCombatFeed("player", "action", log_message);
@@ -1302,12 +1871,75 @@ static void UI_GenerateRewards(void)
     g_run.battle_index++;
     if (g_run.battle_index % 6 == 0) g_run.boss_kills++;
     else if (g_run.battle_index % 3 == 0) g_run.elite_kills++;
+    if (g_run.battle_index % 6 == 0)
+        g_ui_tribulation_pressure += 1 + g_ui_calamity_debt / 4;
+    if (g_ui_has_next_route && g_ui_next_route.reward_bias == UI_ROUTE_REWARD_THUNDER)
+        g_ui_tribulation_pressure += 1;
     g_ui_breakthrough_offered = false;
     int battle_cultivation = UI_BattleCultivationGain();
     YOU.cultivation += battle_cultivation;
     char insight_log[128];
     snprintf(insight_log, sizeof(insight_log), "搏杀感悟：获得 %d 点修为。", battle_cultivation);
     UI_AddLog(insight_log);
+    int understanding_gain = 1;
+    if (g_run.battle_index % 3 == 0)
+        understanding_gain++;
+    if (g_ui_has_next_route && g_ui_next_route.risk >= 2)
+        understanding_gain++;
+    if (RPG_AddMinorUnderstanding(&YOU, understanding_gain))
+        UI_AddLog("小境界有所突破，元神与灵气上限更稳。");
+    else
+    {
+        char understanding_log[128];
+        snprintf(understanding_log, sizeof(understanding_log), "修为理解 +%d。", understanding_gain);
+        UI_AddLog(understanding_log);
+    }
+    int spirit_gain = 2;
+    int herb_gain = 1;
+    if (g_run.battle_index % 3 == 0)
+    {
+        spirit_gain += 1;
+        herb_gain += 1;
+    }
+    if (g_run.battle_index % 6 == 0)
+    {
+        spirit_gain += 2;
+        herb_gain += 1;
+    }
+    if (g_ui_has_next_route)
+    {
+        switch (g_ui_next_route.reward_bias)
+        {
+        case UI_ROUTE_REWARD_ARTIFACT:
+        case UI_ROUTE_REWARD_THUNDER:
+        case UI_ROUTE_REWARD_SWORD:
+            spirit_gain += 2;
+            break;
+        case UI_ROUTE_REWARD_ELIXIR:
+        case UI_ROUTE_REWARD_REBIRTH:
+            herb_gain += 2;
+            break;
+        case UI_ROUTE_REWARD_SKILL:
+        case UI_ROUTE_REWARD_CULTIVATION:
+            spirit_gain += 1;
+            herb_gain += 1;
+            break;
+        default:
+            break;
+        }
+    }
+    spirit_gain += g_ui_calamity_debt / 3;
+    if (g_ui_calamity_debt >= 5)
+        herb_gain += 1;
+    if (g_ui_has_next_route && g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN)
+        spirit_gain += 3;
+    if (Player_HasTalent(&YOU, TALENT_ALCHEMY_RESIDUE))
+        herb_gain += 1;
+    YOU.spirit_materials += spirit_gain;
+    YOU.herb_materials += herb_gain;
+    char material_log[128];
+    snprintf(material_log, sizeof(material_log), "战后搜罗：灵材 +%d，药材 +%d。", spirit_gain, herb_gain);
+    UI_AddLog(material_log);
     if (Player_HasTalent(&YOU, TALENT_BLOOD_REBIRTH))
     {
         int heal = Player_MaxHP(&YOU) / 12 + Yuan[YOU.XIUWEI];
@@ -1373,9 +2005,36 @@ static void UI_GenerateRewards(void)
             if (g_ui_pending_rewards[0].id == SKILL_ID_NONE)
                 g_ui_pending_rewards[0] = (RewardChoice){REWARD_CULTIVATION, RARITY_RARE, 0, max_QI[YOU.XIUWEI] / 2, false};
             break;
+        case UI_ROUTE_REWARD_GHOST:
+            g_ui_pending_rewards[0] = (RewardChoice){REWARD_SKILL, RARITY_RARE, PickRewardSkill(&YOU, RARITY_RARE, true), 1, true};
+            if (g_ui_pending_rewards[0].id == SKILL_ID_NONE)
+                g_ui_pending_rewards[0] = (RewardChoice){REWARD_CULTIVATION, RARITY_RARE, 0, max_QI[YOU.XIUWEI] / 2, false};
+            break;
         case UI_ROUTE_REWARD_BALANCED:
         default:
             break;
+        }
+        if (g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_SWORD_TRIAL)
+        {
+            g_ui_pending_rewards[0] = (RewardChoice){REWARD_SKILL, RARITY_EPIC, PickRewardSkill(&YOU, RARITY_EPIC, true), 1, true};
+            if (g_ui_pending_rewards[0].id == SKILL_ID_NONE)
+                g_ui_pending_rewards[0] = (RewardChoice){REWARD_SKILL, RARITY_RARE, PickRewardSkill(&YOU, RARITY_RARE, true), 1, true};
+            if (g_ui_pending_rewards[0].id == SKILL_ID_NONE)
+                g_ui_pending_rewards[0] = (RewardChoice){REWARD_CULTIVATION, RARITY_EPIC, 0, max_QI[YOU.XIUWEI], false};
+        }
+        else if (g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN)
+        {
+            g_ui_pending_rewards[1] = (RewardChoice){REWARD_ARTIFACT, RARITY_EPIC, PickRewardArtifactForPlayer(&YOU, RARITY_EPIC), 1, false};
+            if (g_ui_pending_rewards[1].id == ARTIFACT_NONE)
+                g_ui_pending_rewards[1] = (RewardChoice){REWARD_CULTIVATION, RARITY_EPIC, 0, max_QI[YOU.XIUWEI], false};
+        }
+    }
+    if (g_ui_calamity_debt >= 4)
+    {
+        for (int i = 0; i < REWARD_CHOICE_COUNT; i++)
+        {
+            if (g_ui_pending_rewards[i].rarity < RARITY_RARE)
+                g_ui_pending_rewards[i].rarity = RARITY_RARE;
         }
     }
     if (g_run.battle_index > 0 && g_run.battle_index % 3 == 0)
@@ -1409,6 +2068,13 @@ static void UI_GenerateRouteOptions(void)
             if (g_ui_route_options[i].data.immediate_reward.type == REWARD_CULTIVATION)
                 g_ui_route_options[i].data.immediate_reward.amount *= scale;
         }
+        if (g_ui_ghost_market_chain >= 2)
+        {
+            g_ui_route_options[0].template_id = 1002;
+            g_ui_route_options[0].data = UI_SPECIAL_ROUTE_GHOST_MARKET;
+            int scale = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+            g_ui_route_options[0].data.immediate_reward.amount *= scale;
+        }
         g_ui_phase = UI_PHASE_ROUTE_CHOICE;
         return;
     }
@@ -1430,6 +2096,27 @@ static void UI_GenerateRouteOptions(void)
             g_ui_route_options[i].data.immediate_reward.amount += 1;
         g_ui_route_options[i].data.cultivation_cost *= scale;
     }
+    if (g_ui_sword_tomb_chain >= 2)
+    {
+        g_ui_route_options[0].template_id = 1000;
+        g_ui_route_options[0].data = UI_SPECIAL_ROUTE_SWORD_TRIAL;
+        int scale = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+        g_ui_route_options[0].data.immediate_reward.amount *= scale;
+    }
+    else if (g_ui_beast_den_chain >= 2)
+    {
+        g_ui_route_options[0].template_id = 1001;
+        g_ui_route_options[0].data = UI_SPECIAL_ROUTE_BLOOD_BEAST;
+        int scale = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+        g_ui_route_options[0].data.immediate_reward.amount *= scale;
+    }
+    else if (g_ui_last_route_template_id == 2 && g_ui_route_streak >= 1)
+    {
+        g_ui_route_options[1].template_id = 1001;
+        g_ui_route_options[1].data = UI_SPECIAL_ROUTE_BLOOD_BEAST;
+        int scale = Yuan[YOU.XIUWEI] > 0 ? Yuan[YOU.XIUWEI] : 1;
+        g_ui_route_options[1].data.immediate_reward.amount *= scale;
+    }
     g_ui_phase = UI_PHASE_ROUTE_CHOICE;
 }
 
@@ -1444,7 +2131,7 @@ static void UI_GenerateTalentOptions(void)
         int compensation = Yuan[YOU.XIUWEI] * 4;
         YOU.cultivation += compensation;
         UI_AddLog("道基天赋已尽数圆满，机缘转化为修为。");
-        UI_GenerateRouteOptions();
+        g_ui_phase = UI_PHASE_PREPARATION;
         return;
     }
 
@@ -1467,20 +2154,27 @@ static void UI_GenerateTalentOptions(void)
     g_ui_phase = UI_PHASE_TALENT_CHOICE;
 }
 
+static void UI_EnterPreparation(void)
+{
+    Player_ClampVitals(&YOU);
+    g_ui_phase = UI_PHASE_PREPARATION;
+}
+
 static void UI_AfterRewardDecision(void)
 {
     g_ui_pending_replacement_reward = (RewardChoice){REWARD_CULTIVATION, RARITY_COMMON, 0, 0, false};
     g_ui_replacement_type = UI_REPLACE_NONE;
+    g_ui_replacement_return_phase = UI_PHASE_RUN_START;
     g_ui_replacement_slot_count = 0;
     g_ui_replacement_action_type = ACTION_TYPE_NONE;
     if (UI_CanBreakthrough(&YOU) && !g_ui_breakthrough_offered)
     {
         g_ui_breakthrough_offered = true;
-        g_ui_phase = UI_PHASE_BREAKTHROUGH_CHOICE;
+        g_ui_phase = UI_PHASE_HEART_DEMON_CHOICE;
     }
     else
     {
-        UI_GenerateRouteOptions();
+        UI_EnterPreparation();
     }
 }
 
@@ -1488,9 +2182,24 @@ static void UI_FinishRewardFlow(void)
 {
     g_ui_pending_replacement_reward = (RewardChoice){REWARD_CULTIVATION, RARITY_COMMON, 0, 0, false};
     g_ui_replacement_type = UI_REPLACE_NONE;
+    g_ui_replacement_return_phase = UI_PHASE_RUN_START;
     g_ui_replacement_slot_count = 0;
     g_ui_replacement_action_type = ACTION_TYPE_NONE;
     UI_AfterRewardDecision();
+}
+
+static void UI_FinishReplacementFlow(void)
+{
+    UIPhase return_phase = g_ui_replacement_return_phase;
+    g_ui_pending_replacement_reward = (RewardChoice){REWARD_CULTIVATION, RARITY_COMMON, 0, 0, false};
+    g_ui_replacement_type = UI_REPLACE_NONE;
+    g_ui_replacement_return_phase = UI_PHASE_RUN_START;
+    g_ui_replacement_slot_count = 0;
+    g_ui_replacement_action_type = ACTION_TYPE_NONE;
+    if (return_phase == UI_PHASE_PREPARATION)
+        UI_EnterPreparation();
+    else
+        UI_AfterRewardDecision();
 }
 
 static void UI_AddArtifactDirect(ArtifactID id)
@@ -1500,7 +2209,11 @@ static void UI_AddArtifactDirect(ArtifactID id)
     if (Player_HasArtifact(&YOU, id))
         return;
     if (YOU.artifact_count < MAX_ARTIFACT_SLOTS)
-        YOU.artifacts[YOU.artifact_count++] = id;
+    {
+        int slot = YOU.artifact_count++;
+        YOU.artifacts[slot] = id;
+        YOU.artifact_levels[slot] = 0;
+    }
 }
 
 static void UI_AddElixirDirect(ElixirID id)
@@ -1576,6 +2289,7 @@ static void UI_BeginReplacement(RewardChoice choice, UIReplacementType type)
 {
     g_ui_pending_replacement_reward = choice;
     g_ui_replacement_type = type;
+    g_ui_replacement_return_phase = g_ui_phase;
     g_ui_replacement_action_type = ACTION_TYPE_NONE;
     if (type == UI_REPLACE_SKILL)
     {
@@ -1802,6 +2516,10 @@ static void UI_ProcessBattleAction(int action_type)
     int before_you_bleeding = YOU.bleeding;
     int before_you_cursed = YOU.cursed;
     int before_you_enraged = YOU.enraged;
+    int before_mastery[TOTAL_SKILLS];
+    int before_cycles[TOTAL_SCHOOLS];
+    memcpy(before_mastery, YOU.skill_mastery, sizeof(before_mastery));
+    memcpy(before_cycles, YOU.school_cycle, sizeof(before_cycles));
     int before_cpu_hp = CPU.HP;
     int before_cpu_qi = CPU.QI;
     int before_cpu_bleeding = CPU.bleeding;
@@ -1882,12 +2600,45 @@ static void UI_ProcessBattleAction(int action_type)
         snprintf(message, sizeof(message), "%s 气势提高 %+d。", CPU.name, CPU.enraged - before_cpu_enraged);
         UI_AddCombatFeed("enemy", "qi", message);
     }
+    for (int i = 0; i < TOTAL_SKILLS; i++)
+    {
+        if (YOU.skill_mastery[i] <= before_mastery[i])
+            continue;
+        int old_level = 0;
+        if (before_mastery[i] >= 15) old_level = 3;
+        else if (before_mastery[i] >= 8) old_level = 2;
+        else if (before_mastery[i] >= 3) old_level = 1;
+        int new_level = RPG_MasteryLevel(&YOU, (SkillID)i);
+        if (new_level > old_level && Skill_IsDefined((SkillID)i))
+        {
+            char message[160];
+            snprintf(message, sizeof(message), "%s 熟练度提升至 Lv%d。", g_skill_database[i].name_chn, new_level);
+            UI_AddCombatFeed("player", "mastery", message);
+        }
+    }
+    for (int i = 1; i < TOTAL_SCHOOLS; i++)
+    {
+        if (YOU.school_cycle[i] == before_cycles[i])
+            continue;
+        char summary[96];
+        char message[160];
+        if (YOU.school_cycle[i] < before_cycles[i])
+        {
+            snprintf(message, sizeof(message), "%s循环触发。", SchoolTagName((SchoolTag)i));
+        }
+        else
+        {
+            RPG_SchoolCycleSummary(&YOU, (SchoolTag)i, summary, sizeof(summary));
+            snprintf(message, sizeof(message), "%s。", summary[0] ? summary : SchoolTagName((SchoolTag)i));
+        }
+        UI_AddCombatFeed("player", "mastery", message);
+    }
     g_ui_phase = UI_PHASE_BATTLE_RESULT;
     if (YOU.HP <= 0)
     {
         if (YOU.soul_state == SOUL_GHOST)
         {
-            g_ui_phase = UI_PHASE_DEFEAT;
+            UI_SetEnding("soul_scattered", "魂飞魄散", "鬼魂之身再遭死劫，魂火彻底熄灭。");
             UI_AddCombatFeed("player", "defeat", "魂火熄灭，终至魂飞魄散。");
         }
         else
@@ -1942,7 +2693,7 @@ static void UI_ChooseReplacement(int slot)
     if (slot < 0)
     {
         UI_AddLog("保留原有配置，放弃替换。");
-        UI_FinishRewardFlow();
+        UI_FinishReplacementFlow();
         return;
     }
     if (g_ui_replacement_type == UI_REPLACE_SKILL)
@@ -1952,7 +2703,7 @@ static void UI_ChooseReplacement(int slot)
             Player_EquipSkill(&YOU, (SkillID)choice.id);
             UI_AddLog("新技能已装备。");
         }
-        UI_FinishRewardFlow();
+        UI_FinishReplacementFlow();
         return;
     }
     if (g_ui_replacement_type == UI_REPLACE_ARTIFACT)
@@ -1961,9 +2712,10 @@ static void UI_ChooseReplacement(int slot)
             choice.id > ARTIFACT_NONE && choice.id < TOTAL_ARTIFACTS)
         {
             YOU.artifacts[slot] = (ArtifactID)choice.id;
+            YOU.artifact_levels[slot] = 0;
             UI_AddLog("法器替换完成。");
         }
-        UI_FinishRewardFlow();
+        UI_FinishReplacementFlow();
         return;
     }
     if (g_ui_replacement_type == UI_REPLACE_ELIXIR)
@@ -1974,8 +2726,82 @@ static void UI_ChooseReplacement(int slot)
             YOU.elixirs[slot] = (ElixirID)choice.id;
             UI_AddLog("丹药替换完成。");
         }
-        UI_FinishRewardFlow();
+        UI_FinishReplacementFlow();
     }
+}
+
+static void UI_UpgradeArtifact(int slot)
+{
+    if (g_ui_phase != UI_PHASE_PREPARATION)
+        return;
+    if (slot < 0 || slot >= YOU.artifact_count)
+    {
+        UI_AddLog("没有可强化的法器槽。");
+        return;
+    }
+    int level = Artifact_LevelAtSlot(&YOU, slot);
+    int cost = Artifact_UpgradeCost(level);
+    if (cost <= 0)
+    {
+        UI_AddLog("这件法器已强化至当前上限。");
+        return;
+    }
+    if (YOU.spirit_materials < cost)
+    {
+        UI_AddLog("灵材不足，无法强化法器。");
+        return;
+    }
+    YOU.spirit_materials -= cost;
+    YOU.artifact_levels[slot] = level + 1;
+    Player_ClampVitals(&YOU);
+    char message[160];
+    snprintf(message, sizeof(message), "消耗 %d 灵材，%s 强化至 +%d。",
+             cost, g_artifact_database[YOU.artifacts[slot]].name_chn, YOU.artifact_levels[slot]);
+    UI_AddLog(message);
+}
+
+static void UI_BrewElixirRecipe(int recipe_index)
+{
+    if (g_ui_phase != UI_PHASE_PREPARATION)
+        return;
+    const AlchemyRecipe *recipe = Alchemy_GetRecipe(recipe_index);
+    if (!recipe)
+    {
+        UI_AddLog("未知丹方。");
+        return;
+    }
+    if (!Alchemy_RecipeUnlocked(&YOU, recipe))
+    {
+        UI_AddLog("境界不足，尚不能炼制此丹。");
+        return;
+    }
+    if (YOU.herb_materials < recipe->herb_cost)
+    {
+        UI_AddLog("药材不足，无法开炉炼丹。");
+        return;
+    }
+    YOU.herb_materials -= recipe->herb_cost;
+    RewardChoice brewed = {REWARD_ELIXIR, g_elixir_database[recipe->elixir_id].rarity, recipe->elixir_id, 1, false};
+    if (YOU.elixir_count < MAX_ELIXIR_SLOTS)
+    {
+        UI_AddElixirDirect(recipe->elixir_id);
+        char message[160];
+        snprintf(message, sizeof(message), "开炉炼成 %s。", g_elixir_database[recipe->elixir_id].name_chn);
+        UI_AddLog(message);
+    }
+    else
+    {
+        UI_AddLog("丹药袋已满，炼成的新丹需要决定去留。");
+        UI_BeginReplacement(brewed, UI_REPLACE_ELIXIR);
+    }
+}
+
+static void UI_SkipPreparation(void)
+{
+    if (g_ui_phase != UI_PHASE_PREPARATION)
+        return;
+    UI_AddLog("整备完毕，继续择路。");
+    UI_GenerateRouteOptions();
 }
 
 static void UI_EquipManagedSkill(int skill_id)
@@ -2011,14 +2837,41 @@ static void UI_EquipManagedSkill(int skill_id)
     UI_AddLog(message);
 }
 
+static void UI_RefineSkill(int skill_id)
+{
+    if (!UI_CanManageSkills())
+    {
+        UI_AddLog("当前阶段不适合洗练功法。");
+        return;
+    }
+    if (!Skill_IsDefined((SkillID)skill_id) || !YOU.unlocked_skills[skill_id])
+    {
+        UI_AddLog("尚未领悟该功法。");
+        return;
+    }
+    const Skill *skill = &g_skill_database[skill_id];
+    int cost = Skill_RefineCost(&YOU, skill);
+    if (YOU.cultivation < cost)
+    {
+        UI_AddLog("修为不足，无法洗练功法。");
+        return;
+    }
+    YOU.cultivation -= cost;
+    SkillRefineType refine = SkillRefine_RandomForSkill(skill);
+    YOU.skill_refines[skill_id] = refine;
+    char message[160];
+    snprintf(message, sizeof(message), "%s 洗练出词条：%s。", skill->name_chn, SkillRefineName(refine));
+    UI_AddLog(message);
+}
+
 static void UI_AttemptBreakthrough(void)
 {
-    if (g_ui_phase != UI_PHASE_BREAKTHROUGH_CHOICE)
+    if (g_ui_phase != UI_PHASE_BREAKTHROUGH_CHOICE && g_ui_phase != UI_PHASE_HEART_DEMON_CHOICE)
         return;
     int cost = UI_BreakthroughCost(&YOU);
     if (cost <= 0 || YOU.cultivation < cost)
     {
-        UI_GenerateRouteOptions();
+        UI_EnterPreparation();
         return;
     }
     int chance = UI_BreakthroughChance(&YOU);
@@ -2026,10 +2879,20 @@ static void UI_AttemptBreakthrough(void)
     if ((int)(Run_Rand() % 100) < chance)
     {
         YOU.XIUWEI++;
+        RPG_ResetMinorRealmProgress(&YOU);
         Apply_Breakthrough_Rewards(&YOU);
         UI_AddLog("闭关功成，境界突破。");
+        {
+            char chronicle[192];
+            snprintf(chronicle, sizeof(chronicle), "%d 岁，闭关功成，突破至%s。", g_ui_age, Realm[YOU.XIUWEI]);
+            UI_AddChronicle("breakthrough", chronicle);
+        }
         YOU.breakthrough_bonus = 0;
         YOU.breakthrough_fail_penalty = 0;
+        if (g_ui_tribulation_pressure > 0)
+            g_ui_tribulation_pressure--;
+        if (UI_CheckAscensionVictory())
+            return;
         UI_GenerateTalentOptions();
         return;
     }
@@ -2046,7 +2909,85 @@ static void UI_AttemptBreakthrough(void)
     }
     YOU.breakthrough_bonus = 0;
     YOU.breakthrough_fail_penalty = 0;
-    UI_GenerateRouteOptions();
+    UI_EnterPreparation();
+}
+
+static void UI_ResolveHeartBreakthrough(UIHeartDemonMode mode)
+{
+    if (g_ui_phase != UI_PHASE_HEART_DEMON_CHOICE)
+        return;
+    int base_cost = UI_BreakthroughCost(&YOU);
+    if (mode == UI_HEART_SUPPRESS)
+    {
+        RPG_AddMinorUnderstanding(&YOU, 1);
+        g_ui_calamity_debt++;
+        g_ui_tribulation_pressure++;
+        UI_AddLog("压境不破，理解更深，劫气也随之积聚。");
+        UI_AddChronicle("heart", "压境不破，心魔暂伏，劫意更深。");
+        g_ui_breakthrough_offered = false;
+        UI_EnterPreparation();
+        return;
+    }
+
+    int cost = base_cost;
+    int chance = UI_BreakthroughChance(&YOU);
+    int hp_loss_pct = Player_HasArtifact(&YOU, ARTIFACT_BREAKTHROUGH_SEAL) ? 25 : 15;
+    if (mode == UI_HEART_STEADY)
+    {
+        cost = base_cost * 5 / 4;
+        chance += 10;
+        hp_loss_pct = hp_loss_pct * 2 / 3;
+    }
+    else if (mode == UI_HEART_RISKY)
+    {
+        cost = base_cost * 3 / 4;
+        chance -= 15;
+        hp_loss_pct += 10;
+    }
+    if (chance < 5) chance = 5;
+    if (chance > 95) chance = 95;
+    if (base_cost <= 0 || YOU.cultivation < cost)
+    {
+        UI_AddLog("修为不足，心魔关前只能暂退。");
+        UI_EnterPreparation();
+        return;
+    }
+    YOU.cultivation -= cost;
+    if ((int)(Run_Rand() % 100) < chance)
+    {
+        YOU.XIUWEI++;
+        RPG_ResetMinorRealmProgress(&YOU);
+        Apply_Breakthrough_Rewards(&YOU);
+        if (mode == UI_HEART_RISKY)
+            RPG_AddMinorUnderstanding(&YOU, 1);
+        UI_AddLog(mode == UI_HEART_STEADY ? "稳妥破关，心魔未能扰道。" : "冒险破关，险中悟得一线真意。");
+        {
+            char chronicle[192];
+            snprintf(chronicle, sizeof(chronicle), "%d 岁，破心魔关，突破至%s。", g_ui_age, Realm[YOU.XIUWEI]);
+            UI_AddChronicle("breakthrough", chronicle);
+        }
+        YOU.breakthrough_bonus = 0;
+        YOU.breakthrough_fail_penalty = 0;
+        if (mode == UI_HEART_STEADY && g_ui_tribulation_pressure > 0)
+            g_ui_tribulation_pressure--;
+        if (mode == UI_HEART_RISKY)
+            g_ui_tribulation_pressure += 1;
+        if (UI_CheckAscensionVictory())
+            return;
+        UI_GenerateTalentOptions();
+        return;
+    }
+
+    int refund = cost / 4;
+    int hp_loss = Player_MaxHP(&YOU) * hp_loss_pct / 100;
+    YOU.cultivation += refund;
+    YOU.HP -= hp_loss;
+    if (YOU.HP <= 0)
+        YOU.HP = 1;
+    UI_AddLog(mode == UI_HEART_STEADY ? "稳妥破关仍未竟，所幸反噬较轻。" : "冒险破关失败，心魔反噬更重。");
+    YOU.breakthrough_bonus = 0;
+    YOU.breakthrough_fail_penalty = 0;
+    UI_EnterPreparation();
 }
 
 static void UI_ChooseTalent(int index)
@@ -2061,13 +3002,14 @@ static void UI_ChooseTalent(int index)
         char message[128];
         snprintf(message, sizeof(message), "道基天赋成型：%s。", g_talent_database[id].name_chn);
         UI_AddLog(message);
+        UI_AddChronicle("talent", message);
     }
     else
     {
         YOU.cultivation += Yuan[YOU.XIUWEI] * 3;
         UI_AddLog("机缘未能成形，转化为修为。");
     }
-    UI_GenerateRouteOptions();
+    UI_EnterPreparation();
 }
 
 static void UI_ChooseNearDeath(int index)
@@ -2099,6 +3041,7 @@ static void UI_ChooseNearDeath(int index)
         YOU.current_action_type = ACTION_TYPE_NONE;
         Player_ClampVitals(&YOU);
         UI_AddLog("燃尽遁光脱离死局，未得战利品。");
+        UI_AddChronicle("escape", "濒死遁逃，舍弃战利以续道途。");
         g_ui_near_death_can_ghost = false;
         g_ui_near_death_reason = "";
         UI_GenerateRouteOptions();
@@ -2113,23 +3056,24 @@ static void UI_ChooseNearDeath(int index)
         YOU.current_action_type = ACTION_TYPE_NONE;
         Player_ClampVitals(&YOU);
         UI_AddLog("阴魂不散，暂以鬼魂之身续行道途。");
+        UI_AddChronicle("ghost", "肉身崩毁，阴魂不散，转入鬼修之途。");
         g_ui_near_death_can_ghost = false;
         g_ui_near_death_reason = "";
         UI_GenerateRouteOptions();
         return;
     }
 
-    g_ui_phase = UI_PHASE_DEFEAT;
+    UI_SetEnding("defeat", "道途暂止", "你选择认命，此世修行止步于此。");
     UI_AddLog("道途暂止，你被击败了。");
 }
 
 static void UI_SkipBreakthrough(void)
 {
-    if (g_ui_phase == UI_PHASE_BREAKTHROUGH_CHOICE)
+    if (g_ui_phase == UI_PHASE_BREAKTHROUGH_CHOICE || g_ui_phase == UI_PHASE_HEART_DEMON_CHOICE)
     {
         UI_AddLog("暂缓突破，继续积蓄修为。");
         g_ui_breakthrough_offered = false;
-        UI_GenerateRouteOptions();
+        UI_EnterPreparation();
     }
 }
 
@@ -2138,17 +3082,26 @@ static void UI_ApplyRouteImmediateReward(const UIRouteTemplate *route)
     if (route->reward_bias == UI_ROUTE_REWARD_REBIRTH)
     {
         int cost = UI_RebirthCultivationCost();
+        if (route->special_rule == UI_ROUTE_SPECIAL_GHOST_MARKET_RITE)
+            cost = cost * 3 / 4;
         if (YOU.soul_state == SOUL_GHOST && YOU.cultivation >= cost)
         {
             YOU.cultivation -= cost;
             YOU.soul_state = SOUL_BODY;
+            g_ui_has_reborn = true;
             YOU.HP = UI_MaxInt(1, Player_MaxHP(&YOU) / 2);
             YOU.QI = 0;
             Player_ClampVitals(&YOU);
             UI_AddLog("还阳坛阴火退散，肉身重凝。");
+            UI_AddChronicle("rebirth", "还阳坛阴火退散，肉身重凝。");
             return;
         }
         int gain = Yuan[YOU.XIUWEI] * 4;
+        if (route->special_rule == UI_ROUTE_SPECIAL_GHOST_MARKET_RITE)
+        {
+            YOU.herb_materials += 3;
+            gain += Yuan[YOU.XIUWEI] * 2;
+        }
         YOU.cultivation += gain;
         UI_AddLog("还阳机缘未足，坛火暂护残魂并转为修为。");
         return;
@@ -2182,6 +3135,35 @@ static void UI_ApplyRouteImmediateReward(const UIRouteTemplate *route)
     {
         UI_TryInsightSkill(RARITY_RARE, true, "剑冢余意入心，化作一门剑诀。");
     }
+    if (route->special_rule == UI_ROUTE_SPECIAL_SWORD_TRIAL)
+        UI_TryInsightSkill(RARITY_EPIC, true, "剑修试炼破阵成功，剑意化作真传。");
+
+    switch (route->reward_bias)
+    {
+    case UI_ROUTE_REWARD_ELIXIR:
+    case UI_ROUTE_REWARD_REBIRTH:
+        YOU.herb_materials += 2 + Player_HasTalent(&YOU, TALENT_ALCHEMY_RESIDUE);
+        UI_AddLog("路线途中采得一批药材。");
+        break;
+    case UI_ROUTE_REWARD_ARTIFACT:
+    case UI_ROUTE_REWARD_THUNDER:
+    case UI_ROUTE_REWARD_SWORD:
+        YOU.spirit_materials += 2;
+        UI_AddLog("路线途中寻得一批灵材。");
+        break;
+    case UI_ROUTE_REWARD_SKILL:
+        YOU.herb_materials += 1;
+        YOU.spirit_materials += 1;
+        UI_AddLog("洞府余藏中还有些灵材药材。");
+        break;
+    default:
+        break;
+    }
+    if (route->special_rule == UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN)
+    {
+        YOU.spirit_materials += 3;
+        UI_AddLog("血煞兽窟深处还有额外灵材。");
+    }
 }
 
 static void UI_ChooseRoute(int index)
@@ -2192,6 +3174,33 @@ static void UI_ChooseRoute(int index)
         index = 0;
     g_ui_next_route = g_ui_route_options[index].data;
     g_ui_has_next_route = true;
+    int template_id = g_ui_route_options[index].template_id;
+    if (template_id == g_ui_last_route_template_id)
+        g_ui_route_streak++;
+    else
+        g_ui_route_streak = 1;
+    g_ui_last_route_template_id = template_id;
+    if (g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_SWORD_TRIAL)
+        g_ui_sword_tomb_chain = 0;
+    else if (template_id == 5)
+        g_ui_sword_tomb_chain++;
+    else
+        g_ui_sword_tomb_chain = 0;
+    if (g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_BLOOD_BEAST_DEN)
+        g_ui_beast_den_chain = 0;
+    else if (template_id == 2)
+        g_ui_beast_den_chain++;
+    else
+        g_ui_beast_den_chain = 0;
+    if (g_ui_next_route.special_rule == UI_ROUTE_SPECIAL_GHOST_MARKET_RITE)
+        g_ui_ghost_market_chain = 0;
+    else if (YOU.soul_state == SOUL_GHOST && template_id == 1)
+        g_ui_ghost_market_chain++;
+    else if (YOU.soul_state != SOUL_GHOST)
+        g_ui_ghost_market_chain = 0;
+    g_ui_calamity_debt += UI_RouteDebtDelta(&g_ui_next_route);
+    if (g_ui_calamity_debt < 0)
+        g_ui_calamity_debt = 0;
     if (g_ui_next_route.cultivation_cost > 0)
     {
         YOU.cultivation -= g_ui_next_route.cultivation_cost;
@@ -2204,7 +3213,7 @@ static void UI_ChooseRoute(int index)
         YOU.HP -= loss;
         if (YOU.HP <= 0 && YOU.soul_state == SOUL_GHOST)
         {
-            g_ui_phase = UI_PHASE_DEFEAT;
+            UI_SetEnding("soul_scattered", "魂飞魄散", "路线劫数击散魂火，本次鬼修道途终结。");
             UI_AddLog("路线劫数击散魂火，魂飞魄散。");
             return;
         }
@@ -2212,6 +3221,9 @@ static void UI_ChooseRoute(int index)
             YOU.HP = 1;
     }
     UI_ApplyRouteImmediateReward(&g_ui_next_route);
+    UI_AdvanceYearsForRoute(&g_ui_next_route);
+    if (UI_CheckLifespanEnd())
+        return;
     if (Player_HasTalent(&YOU, TALENT_WANDERER) && g_ui_next_route.risk <= 0)
     {
         int gain = Yuan[YOU.XIUWEI];
@@ -2219,6 +3231,11 @@ static void UI_ChooseRoute(int index)
         UI_AddLog("行脚老成，从安稳路线中沉淀了额外修为。");
     }
     UI_AddLog(g_ui_next_route.title);
+    {
+        char chronicle[192];
+        snprintf(chronicle, sizeof(chronicle), "选择%s，下一场生死搏杀将至。", g_ui_next_route.title);
+        UI_AddChronicle("route", chronicle);
+    }
     g_ui_phase = UI_PHASE_BETWEEN_BATTLES;
 }
 
@@ -2267,10 +3284,20 @@ static int Run_UI_JSON_Mode(void)
             UI_ChooseReward(UI_ParseCommandValue(line, "index", 0));
         else if (strstr(line, "choose_replacement"))
             UI_ChooseReplacement(UI_ParseCommandValue(line, "slot", -1));
+        else if (strstr(line, "upgrade_artifact"))
+            UI_UpgradeArtifact(UI_ParseCommandValue(line, "slot", -1));
+        else if (strstr(line, "brew_elixir"))
+            UI_BrewElixirRecipe(UI_ParseCommandValue(line, "recipe", -1));
+        else if (strstr(line, "skip_preparation"))
+            UI_SkipPreparation();
         else if (strstr(line, "equip_skill"))
             UI_EquipManagedSkill(UI_ParseCommandValue(line, "id", SKILL_ID_NONE));
+        else if (strstr(line, "refine_skill"))
+            UI_RefineSkill(UI_ParseCommandValue(line, "id", SKILL_ID_NONE));
         else if (strstr(line, "attempt_breakthrough"))
             UI_AttemptBreakthrough();
+        else if (strstr(line, "choose_heart_demon"))
+            UI_ResolveHeartBreakthrough((UIHeartDemonMode)UI_ParseCommandValue(line, "mode", 0));
         else if (strstr(line, "skip_breakthrough"))
             UI_SkipBreakthrough();
         else if (strstr(line, "choose_talent"))

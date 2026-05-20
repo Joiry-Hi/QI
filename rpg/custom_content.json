@@ -1,21 +1,5 @@
 {
-  "skills": [
-    {
-      "name": "一剑开天门",
-      "desc": "<天门中断楚江开。>",
-      "action_type": "terminate",
-      "school": "sword",
-      "realm": "foundation",
-      "cost": 20,
-      "rank": 2,
-      "base_power": 100,
-      "type_id": "slash",
-      "attribute": "space",
-      "target": "enemy",
-      "custom_effect": "damage",
-      "custom_value": 10
-    }
-  ],
+  "skills": [],
   "artifacts": [],
   "elixirs": []
 }

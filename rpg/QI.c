@@ -143,6 +143,7 @@ static bool Elixir_IsCustomID(ElixirID id)
     return id >= CUSTOM_ELIXIR_START && id < TOTAL_ELIXIRS;
 }
 
+static int Player_ArtifactIntBonus(const Player *player, int (*read_bonus)(const Artifact *artifact)) __attribute__((unused));
 static int Player_ArtifactIntBonus(const Player *player, int (*read_bonus)(const Artifact *artifact))
 {
     int total = 0;
@@ -159,6 +160,17 @@ static int ArtifactMaxHPPct(const Artifact *artifact) { return artifact->max_hp_
 static int ArtifactMaxQIPct(const Artifact *artifact) { return artifact->max_qi_pct; }
 static int ArtifactBreakthroughPct(const Artifact *artifact) { return artifact->breakthrough_pct; }
 static int ArtifactPostBattleCultivation(const Artifact *artifact) { return artifact->post_battle_cultivation; }
+static int Player_ArtifactEffectiveIntBonus(const Player *player, int (*read_bonus)(const Artifact *artifact));
+
+static int RPG_MinorRealmBonusPct(const Player *player)
+{
+    if (!player)
+        return 0;
+    int level = player->minor_realm_level;
+    if (level < 0) level = 0;
+    if (level > MAX_MINOR_REALM_LEVEL) level = MAX_MINOR_REALM_LEVEL;
+    return level * 3;
+}
 
 static bool Player_HasTalent(const Player *player, TalentID id);
 static int Player_MaxHP(const Player *player);
@@ -225,8 +237,9 @@ static int Player_MaxHP(const Player *player)
     int max_hp = max_HP[player->XIUWEI];
     if (player->root == ROOT_Solid)
         max_hp = (int)(max_hp * 1.2f);
+    max_hp = max_hp * (100 + RPG_MinorRealmBonusPct(player)) / 100;
     max_hp = max_hp * (100 + Player_TalentBonusPct(player, TALENT_GOLDEN_BODY)) / 100;
-    max_hp = max_hp * (100 + Player_ArtifactIntBonus(player, ArtifactMaxHPPct)) / 100;
+    max_hp = max_hp * (100 + Player_ArtifactEffectiveIntBonus(player, ArtifactMaxHPPct)) / 100;
     if (player->soul_state == SOUL_GHOST)
         max_hp = (max_hp * 60 + 99) / 100;
     if (max_hp < 1)
@@ -239,8 +252,9 @@ static int Player_MaxQI(const Player *player)
     if (player->XIUWEI < 0 || player->XIUWEI >= TOTAL_XIUWEI_LEVEL)
         return 1;
     int max_qi = max_QI[player->XIUWEI];
+    max_qi = max_qi * (100 + RPG_MinorRealmBonusPct(player)) / 100;
     max_qi = max_qi * (100 + Player_TalentBonusPct(player, TALENT_QI_SEA)) / 100;
-    max_qi = max_qi * (100 + Player_ArtifactIntBonus(player, ArtifactMaxQIPct)) / 100;
+    max_qi = max_qi * (100 + Player_ArtifactEffectiveIntBonus(player, ArtifactMaxQIPct)) / 100;
     if (player->soul_state == SOUL_GHOST)
         max_qi = (max_qi * 80 + 99) / 100;
     if (max_qi < 1)
@@ -308,10 +322,16 @@ static void Player_ResetRunFields(Player *player)
     memset(player->unlocked_skills, 0, sizeof(player->unlocked_skills));
     memset(player->bypassed_prereq_skills, 0, sizeof(player->bypassed_prereq_skills));
     memset(player->school_counts, 0, sizeof(player->school_counts));
+    memset(player->skill_mastery, 0, sizeof(player->skill_mastery));
+    memset(player->school_cycle, 0, sizeof(player->school_cycle));
+    memset(player->skill_refines, 0, sizeof(player->skill_refines));
     for (int i = 0; i < TOTAL_ACTION_TYPES; i++)
         player->equipped_skills[i] = SKILL_ID_NONE;
     for (int i = 0; i < MAX_ARTIFACT_SLOTS; i++)
+    {
         player->artifacts[i] = ARTIFACT_NONE;
+        player->artifact_levels[i] = 0;
+    }
     for (int i = 0; i < MAX_ELIXIR_SLOTS; i++)
         player->elixirs[i] = ELIXIR_NONE;
     memset(player->talents, 0, sizeof(player->talents));
@@ -326,6 +346,10 @@ static void Player_ResetRunFields(Player *player)
     player->breakthrough_bonus = 0;
     player->breakthrough_fail_penalty = 0;
     player->cultivation = 0;
+    player->spirit_materials = 0;
+    player->herb_materials = 0;
+    player->minor_understanding = 0;
+    player->minor_realm_level = 0;
     player->berserk_elixir_turns = 0;
     player->wind_charm_disabled_turns = 0;
 }
@@ -361,7 +385,13 @@ static int Run_UI_JSON_Mode(void);
 
 #include "rpg_build.inc"
 
+#include "rpg_growth.inc"
+
 #include "rpg_skill_effects.inc"
+
+#include "rpg_equipment.inc"
+
+#include "rpg_mastery.inc"
 
 #include "rpg_custom_content.inc"
 #include "rpg_data.inc"
@@ -417,6 +447,8 @@ void Oneway_Solution(Player *attacker, Player *defender)
 
     // 获取基础伤害
     float base_damage = attacker_skill->base_power * attacker->ATK;
+    if (Player_SkillRefine(attacker, attacker_skill->skill_id) == SKILL_REFINE_DAMAGE)
+        base_damage *= 1.10f;
 
     if (attacker_skill->action_type == ACTION_TYPE_MELEE || attacker_skill->action_type == ACTION_TYPE_SMITE)
     {
@@ -424,9 +456,9 @@ void Oneway_Solution(Player *attacker, Player *defender)
     }
     if (Player_HasArtifact(attacker, ARTIFACT_THUNDER_WOOD_SWORD) &&
         (attacker_skill->attribute_id == ATTR_THUNDER || attacker_skill->school_tag == SCHOOL_SWORD) &&
-        (rand() % 100) < 30)
+        (rand() % 100) < Artifact_ThunderWoodChance(attacker))
     {
-        int bonus = Player_PercentOfMaxHP(attacker, 4);
+        int bonus = Player_PercentOfMaxHP(attacker, Artifact_ThunderWoodDamagePct(attacker));
         base_damage += bonus;
         CHN_PRINT("[雷击木剑] 雷痕爆发，追加 %d 点伤害！\n", bonus);
     }
@@ -495,7 +527,7 @@ void Oneway_Solution(Player *attacker, Player *defender)
         (defender_skill->action_type == ACTION_TYPE_DEFEND ||
          defender_skill->action_type == ACTION_TYPE_COUNTER))
     {
-        final_damage *= 0.75f;
+        final_damage *= Artifact_TurtleArmorDamageMultiplier(defender);
         CHN_PRINT("[玄龟甲] 护住要害，伤害降低。\n");
     }
 
@@ -504,13 +536,17 @@ void Oneway_Solution(Player *attacker, Player *defender)
     {
     case ATTR_BLOOD:
         defender->bleeding += attacker_skill->effect_strength;
+        if (Player_SkillRefine(attacker, attacker_skill->skill_id) == SKILL_REFINE_STATUS)
+            defender->bleeding += 1;
         if (Player_HasArtifact(attacker, ARTIFACT_BLOOD_BANNER))
-            defender->bleeding += Player_PercentOfMaxHP(defender, 2);
+            defender->bleeding += Player_PercentOfMaxHP(defender, Artifact_BloodBannerBleedPct(attacker));
         attacker->HP_change += final_damage / 5;
         break;
     case ATTR_DARK:
     {
         int qi_stolen = (defender->QI >= attacker_skill->effect_strength) ? attacker_skill->effect_strength : defender->QI;
+        if (Player_SkillRefine(attacker, attacker_skill->skill_id) == SKILL_REFINE_STATUS && qi_stolen < defender->QI)
+            qi_stolen += 1;
         defender->QI_change -= qi_stolen;
         break;
     }
@@ -519,10 +555,12 @@ void Oneway_Solution(Player *attacker, Player *defender)
     }
 
     Apply_OnHit_SkillEffects(attacker, defender, attacker_skill, (int)final_damage);
+    final_damage = RPG_ApplySchoolOnHit(attacker, defender, attacker_skill, (int)final_damage);
 
     // --- 步骤 7: 应用最终伤害 ---
     if (final_damage > 0)
     {
+        final_damage = RPG_ApplySchoolOnDefense(defender, defender_skill, (int)final_damage);
         defender->HP_change -= final_damage;
         if (Player_HasArtifact(defender, ARTIFACT_WIND_CHARM) &&
             attacker_skill->action_type == ACTION_TYPE_SMITE)
@@ -910,7 +948,9 @@ static void Player_AddArtifact(Player *player, ArtifactID id)
 
     if (player->artifact_count < MAX_ARTIFACT_SLOTS)
     {
-        player->artifacts[player->artifact_count++] = id;
+        int slot = player->artifact_count++;
+        player->artifacts[slot] = id;
+        player->artifact_levels[slot] = 0;
     }
     else
     {
@@ -932,6 +972,7 @@ static void Player_AddArtifact(Player *player, ArtifactID id)
         if (replace < 1 || replace > MAX_ARTIFACT_SLOTS)
             return;
         player->artifacts[replace - 1] = id;
+        player->artifact_levels[replace - 1] = 0;
     }
     CHN_PRINT("[法器] 获得 %s。\n", g_artifact_database[id].name_chn);
     ENG_PRINT("[Artifact] Gained %s.\n", g_artifact_database[id].name_eng);
@@ -1149,18 +1190,26 @@ static void Resolve_Immediate_Effects(Player *player)
     switch (player->current_action_type)
     {
     case ACTION_TYPE_GAIN_QI:
-        player->QI_change += player->gain_bonus;
+    {
+        int gain = player->gain_bonus;
+        if (Player_SkillRefine(player, chosen_skill->skill_id) == SKILL_REFINE_QI_FLOW)
+            gain = gain * 110 / 100 + 1;
+        player->QI_change += gain;
         if (Player_HasArtifact(player, ARTIFACT_QI_GOURD))
         {
-            player->QI_change += 1;
-            CHN_PRINT("[聚灵葫芦] 额外聚来 1 点气。\n");
+            int extra = Artifact_QiGourdExtra(player);
+            player->QI_change += extra;
+            CHN_PRINT("[聚灵葫芦] 额外聚来 %d 点气。\n", extra);
         }
-        CHN_PRINT("%s 集了 %d 点气!\n", player->name, player->gain_bonus);
-        ENG_PRINT("%s gained %d QI!\n", player->name, player->gain_bonus);
+        CHN_PRINT("%s 集了 %d 点气!\n", player->name, gain);
+        ENG_PRINT("%s gained %d QI!\n", player->name, gain);
         break;
+    }
     case ACTION_TYPE_BURST:
     {
-        int burst_cost_per_hit = chosen_skill->cost;
+        int burst_cost_per_hit = Skill_EffectiveCostForPlayer(player, chosen_skill);
+        if (burst_cost_per_hit <= 0)
+            burst_cost_per_hit = 1;
         player->burst_count = player->QI / burst_cost_per_hit;
         player->QI_change -= player->burst_count * burst_cost_per_hit;
         switch (chosen_skill->skill_id)
@@ -1189,13 +1238,19 @@ static void Resolve_Immediate_Effects(Player *player)
         {
         case SKILL_ID_WARCRY:
             player->enraged += 3;
+            if (Player_SkillRefine(player, chosen_skill->skill_id) == SKILL_REFINE_STATUS)
+                player->enraged += 1;
             break;
         case SKILL_ID_CONCENTRATION:
             player->enraged += 2;
+            if (Player_SkillRefine(player, chosen_skill->skill_id) == SKILL_REFINE_STATUS)
+                player->enraged += 1;
             player->evade = 0.75f;
             break;
         case SKILL_ID_CORE_ERUPTION:
             player->enraged += 6;
+            if (Player_SkillRefine(player, chosen_skill->skill_id) == SKILL_REFINE_STATUS)
+                player->enraged += 1;
             break;
         default:
             break;
@@ -1222,6 +1277,8 @@ static void Resolve_Immediate_Effects(Player *player)
         }
         if (Player_HasArtifact(player, ARTIFACT_BLOOD_BANNER))
             heal_amount = heal_amount * 3 / 4;
+        if (Player_SkillRefine(player, chosen_skill->skill_id) == SKILL_REFINE_HEALING)
+            heal_amount = heal_amount * 110 / 100 + 1;
         if (Player_HasArtifact(player, ARTIFACT_GREEN_WOOD_BOTTLE))
         {
             player->bleeding = 0;
@@ -1252,6 +1309,7 @@ static void Resolve_Immediate_Effects(Player *player)
     {
         player->combo = 0;
     }
+    RPG_RecordSkillCast(player, chosen_skill);
 }
 // --- END REFACTOR ---
 
@@ -1268,7 +1326,8 @@ int get_affordable_actions(const Player *player, ActionType affordable_actions[]
         const Skill *skill_in_slot = &player->learned_skills[i];
 
         // 检查这个技能槽中是否有已学习的技能，并且QI足够
-        if (skill_in_slot->skill_id != SKILL_ID_NONE && player->QI >= skill_in_slot->cost)
+        if (skill_in_slot->skill_id != SKILL_ID_NONE &&
+            player->QI >= Skill_EffectiveCostForPlayer(player, skill_in_slot))
         {
             // 如果可用，将该槽位对应的【宏观行动类别】添加到列表中
             affordable_actions[count] = skill_in_slot->action_type;
@@ -1285,7 +1344,8 @@ static inline int can_perform_action(const Player *player, ActionType action_typ
     const Skill *skill_in_slot = &player->learned_skills[action_type];
 
     // 检查该槽位是否有技能，且QI足够
-    if (skill_in_slot->skill_id != SKILL_ID_NONE && player->QI >= skill_in_slot->cost)
+    if (skill_in_slot->skill_id != SKILL_ID_NONE &&
+        player->QI >= Skill_EffectiveCostForPlayer(player, skill_in_slot))
     {
         return 1;
     }
@@ -1636,7 +1696,7 @@ static void Resolve_Persistent_Effects(Player *player)
     float base_evade = (player->root == ROOT_Ethereal) ? 0.1f * player->XIUWEI : 0.02f * player->XIUWEI;
     base_evade += g_config.initial_evade;
     if (Player_HasArtifact(player, ARTIFACT_WIND_CHARM) && player->wind_charm_disabled_turns <= 0)
-        base_evade += 0.08f;
+        base_evade += Artifact_WindCharmEvadeBonus(player);
     if (player->wind_charm_disabled_turns > 0)
         player->wind_charm_disabled_turns--;
     if (player->evade > base_evade)
@@ -1751,7 +1811,7 @@ static void Resolve_Breakthrough(Player *player)
         {
             float breakthrough_chance = (player->root == ROOT_Heavenly) ? 90.0f : 90.0f * exp(-player->XIUWEI / 2.0f);
             if (Player_HasArtifact(player, ARTIFACT_BREAKTHROUGH_SEAL))
-                breakthrough_chance += 15.0f;
+                breakthrough_chance += 15.0f + 3.0f * Player_ArtifactLevel(player, ARTIFACT_BREAKTHROUGH_SEAL);
             breakthrough_chance += player->breakthrough_bonus;
             if (breakthrough_chance > 95.0f)
                 breakthrough_chance = 95.0f;

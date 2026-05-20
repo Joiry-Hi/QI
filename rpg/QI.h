@@ -36,10 +36,13 @@
 #define MAX_ROUNDS 500
 #define STRATEGIC_CYCLE 5
 #define MAX_ARTIFACT_SLOTS 3
+#define MAX_ARTIFACT_LEVEL 3
 #define MAX_ELIXIR_SLOTS 6
 #define REWARD_CHOICE_COUNT 3
 #define MAX_TALENTS 8
 #define MAX_SKILL_EFFECTS 3
+#define MAX_SKILL_MASTERY_LEVEL 3
+#define MAX_MINOR_REALM_LEVEL 3
 #define CUSTOM_SKILL_SLOTS 16
 #define CUSTOM_ARTIFACT_SLOTS 12
 #define CUSTOM_ELIXIR_SLOTS 12
@@ -295,6 +298,16 @@ typedef enum {
     SKILL_EFFECT_LIFESTEAL_PCT
 } SkillEffectType;
 
+typedef enum {
+    SKILL_REFINE_NONE,
+    SKILL_REFINE_COST_DOWN,
+    SKILL_REFINE_DAMAGE,
+    SKILL_REFINE_QI_FLOW,
+    SKILL_REFINE_HEALING,
+    SKILL_REFINE_STATUS,
+    TOTAL_SKILL_REFINES
+} SkillRefineType;
+
 #pragma endregion Core_Enums
 
 #pragma region Logic_Structs
@@ -421,13 +434,21 @@ typedef struct Player_s {
     SkillID equipped_skills[TOTAL_ACTION_TYPES];
     bool bypassed_prereq_skills[TOTAL_SKILLS];
     ArtifactID artifacts[MAX_ARTIFACT_SLOTS];
+    int artifact_levels[MAX_ARTIFACT_SLOTS];
     int artifact_count;
     ElixirID elixirs[MAX_ELIXIR_SLOTS];
     int elixir_count;
+    int spirit_materials;
+    int herb_materials;
+    int minor_understanding;
+    int minor_realm_level;
     bool talents[TOTAL_TALENTS];
     int talent_count;
     SoulState soul_state;
     int school_counts[TOTAL_SCHOOLS];
+    int skill_mastery[TOTAL_SKILLS];
+    int school_cycle[TOTAL_SCHOOLS];
+    SkillRefineType skill_refines[TOTAL_SKILLS];
     bool elixir_used_this_turn;
     bool mirror_used_this_battle;
     bool formless_jade_used;

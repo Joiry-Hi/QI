@@ -67,13 +67,23 @@ static void Apply_OnCast_SkillEffects(Player *caster, const Skill *skill)
         switch (effect->type)
         {
         case SKILL_EFFECT_HEAL_HP_PCT:
-            caster->HP_change += Player_PercentOfMaxHP(caster, effect->value);
+        {
+            int value = effect->value;
+            if (Player_SkillRefine(caster, skill->skill_id) == SKILL_REFINE_HEALING)
+                value = value * 110 / 100 + 1;
+            caster->HP_change += Player_PercentOfMaxHP(caster, value);
             break;
+        }
         case SKILL_EFFECT_GAIN_QI_PCT:
-            caster->QI_change += Player_PercentOfMaxQI(caster, effect->value);
+        {
+            int value = effect->value;
+            if (Player_SkillRefine(caster, skill->skill_id) == SKILL_REFINE_QI_FLOW)
+                value = value * 110 / 100 + 1;
+            caster->QI_change += Player_PercentOfMaxQI(caster, value);
             break;
+        }
         case SKILL_EFFECT_ENRAGE:
-            caster->enraged += effect->value;
+            caster->enraged += effect->value + (Player_SkillRefine(caster, skill->skill_id) == SKILL_REFINE_STATUS ? 1 : 0);
             break;
         case SKILL_EFFECT_CLEANSE:
             caster->bleeding = 0;
@@ -105,13 +115,19 @@ static void Apply_OnHit_SkillEffects(Player *attacker, Player *defender, const S
         switch (effect->type)
         {
         case SKILL_EFFECT_DAMAGE_PCT:
-            defender->HP_change -= Player_PercentOfMaxHP(attacker, effect->value);
+        {
+            int value = effect->value;
+            if (Player_SkillRefine(attacker, skill->skill_id) == SKILL_REFINE_DAMAGE)
+                value = value * 110 / 100 + 1;
+            defender->HP_change -= Player_PercentOfMaxHP(attacker, value);
             break;
+        }
         case SKILL_EFFECT_BLEED:
-            defender->bleeding += effect->value;
+            defender->bleeding += effect->value + (Player_SkillRefine(attacker, skill->skill_id) == SKILL_REFINE_STATUS ? 1 : 0);
             break;
         case SKILL_EFFECT_CURSE:
-            defender->cursed += effect->value > 0 ? effect->value : final_damage;
+            defender->cursed += (effect->value > 0 ? effect->value : final_damage) +
+                                (Player_SkillRefine(attacker, skill->skill_id) == SKILL_REFINE_STATUS ? 1 : 0);
             break;
         case SKILL_EFFECT_STEAL_QI:
         {

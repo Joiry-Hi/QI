@@ -82,9 +82,11 @@ button:disabled {
 .top-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.ghost-btn, .primary-btn, .action-btn, .reward-card, .elixir-btn, .replacement-card, .route-card, .near-death-card, .skill-tree-card, .workshop-card {
+.ghost-btn, .primary-btn, .action-btn, .reward-card, .elixir-btn, .replacement-card, .route-card, .near-death-card, .heart-demon-card, .skill-tree-card, .workshop-card, .preparation-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(33, 53, 48, 0.86);
@@ -109,7 +111,7 @@ button:disabled {
   font-weight: 800;
 }
 
-.ghost-btn:hover, .action-btn:hover, .reward-card:hover, .elixir-btn:hover, .replacement-card:hover, .route-card:hover, .near-death-card:hover, .skill-tree-card:hover {
+.ghost-btn:hover, .action-btn:hover, .reward-card:hover, .elixir-btn:hover, .replacement-card:hover, .route-card:hover, .near-death-card:hover, .heart-demon-card:hover, .skill-tree-card:hover, .preparation-card:hover {
   border-color: rgba(230, 191, 99, 0.62);
   transform: translateY(-1px);
 }
@@ -341,7 +343,7 @@ h2 {
   line-height: 1.55;
 }
 
-.reward-panel, .encounter-panel, .replacement-panel, .breakthrough-panel, .route-panel, .talent-panel, .near-death-panel, .skill-tree-panel, .workshop-panel {
+.reward-panel, .encounter-panel, .replacement-panel, .breakthrough-panel, .heart-demon-panel, .route-panel, .talent-panel, .near-death-panel, .preparation-panel, .skill-tree-panel, .workshop-panel {
   margin-top: 14px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -382,6 +384,18 @@ h2 {
 .skill-tree-card.equipped {
   border-color: rgba(90, 217, 141, 0.48);
   background: rgba(90, 217, 141, 0.08);
+}
+
+.skill-tree-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.skill-tree-actions .ghost-btn {
+  width: 100%;
+  min-width: 0;
 }
 
 .workshop-tabs {
@@ -496,6 +510,13 @@ h2 {
   margin-top: 12px;
 }
 
+.heart-demon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .talent-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -503,10 +524,37 @@ h2 {
   margin-top: 12px;
 }
 
-.route-card, .talent-card, .near-death-card {
+.preparation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.preparation-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.preparation-card {
+  min-height: 112px;
+  padding: 12px;
+  text-align: left;
+}
+
+.route-card, .talent-card, .near-death-card, .heart-demon-card {
   min-height: 168px;
   padding: 13px;
   text-align: left;
+}
+
+.heart-demon-card.risky {
+  border-color: rgba(236, 111, 102, 0.42);
+}
+
+.heart-demon-card.suppress {
+  border-color: rgba(230, 191, 99, 0.42);
 }
 
 .near-death-card {
@@ -601,6 +649,87 @@ h2 {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.timeline-list, .records-list {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-item, .record-item {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid rgba(174, 231, 210, 0.12);
+  border-radius: 8px;
+  background: rgba(7, 17, 15, 0.32);
+  font-size: 12px;
+}
+
+.timeline-item span, .record-item span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.record-item.muted {
+  opacity: 0.82;
+}
+
+.details-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  justify-items: end;
+}
+
+.details-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 7, 6, 0.62);
+  backdrop-filter: blur(5px);
+}
+
+.details-panel {
+  position: relative;
+  width: min(760px, calc(100vw - 24px));
+  height: calc(100vh - 24px);
+  margin: 12px;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: rgba(11, 22, 20, 0.96);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.details-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-head h2 {
+  margin: 0;
+}
+
+.details-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.details-grid section {
+  min-width: 0;
+}
+
 .hidden { display: none; }
 
 @media (max-width: 1040px) {
@@ -612,8 +741,12 @@ h2 {
     grid-template-columns: 1fr 1fr;
   }
 
-  .action-grid, .reward-grid, .replacement-options, .route-grid, .talent-grid, .near-death-grid, .skill-tree-list, .workshop-list, .workshop-card {
+  .action-grid, .reward-grid, .replacement-options, .route-grid, .talent-grid, .near-death-grid, .heart-demon-grid, .preparation-grid, .skill-tree-list, .workshop-list, .workshop-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -625,6 +758,21 @@ h2 {
   .topbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .top-actions {
+    justify-content: stretch;
+  }
+
+  .top-actions .ghost-btn {
+    flex: 1 1 76px;
+  }
+
+  .details-panel {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    margin: 8px;
+    padding: 12px;
   }
 
   .fighter {
@@ -650,7 +798,7 @@ h2 {
     min-height: auto;
   }
 
-  .action-grid, .reward-grid, .replacement-options, .route-grid, .talent-grid, .near-death-grid, .skill-tree-list, .workshop-list, .workshop-card, .workshop-actions, .round-core {
+  .action-grid, .reward-grid, .replacement-options, .route-grid, .talent-grid, .near-death-grid, .heart-demon-grid, .preparation-grid, .skill-tree-list, .workshop-list, .workshop-card, .workshop-actions, .round-core {
     grid-template-columns: 1fr;
   }
 }

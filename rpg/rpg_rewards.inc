@@ -158,7 +158,7 @@ void Run_AfterBattleReward(Player *player)
     if (g_run.battle_index % 6 == 0) g_run.boss_kills++;
     else if (g_run.battle_index % 3 == 0) g_run.elite_kills++;
     int battle_cultivation = Yuan[player->XIUWEI] * (2 + (g_run.battle_index % 3 == 0) + (g_run.battle_index % 6 == 0));
-    battle_cultivation += Player_ArtifactIntBonus(player, ArtifactPostBattleCultivation);
+    battle_cultivation += Player_ArtifactEffectiveIntBonus(player, ArtifactPostBattleCultivation);
     player->cultivation += battle_cultivation;
     CHN_PRINT("[搏杀感悟] 获得 %d 点修为。\n", battle_cultivation);
     ENG_PRINT("[Battle Insight] Gained %d cultivation.\n", battle_cultivation);
