@@ -14,6 +14,10 @@ static const AlchemyRecipe g_alchemy_recipes[] = {
     {2, ELIXIR_CLEAR_MIND, "清心丹", 4, MORTAL},
     {3, ELIXIR_BERSERK, "爆元丹", 7, FOUNDATION},
     {4, ELIXIR_BREAKTHROUGH, "破境丹", 10, CORE_FORM},
+    {5, ELIXIR_WOOD_SPIRIT, "木灵丹", 5, REFINING},
+    {6, ELIXIR_EXORCISM, "辟邪丹", 6, FOUNDATION},
+    {7, ELIXIR_FOCUS_INSIGHT, "凝神丹", 8, FOUNDATION},
+    {8, ELIXIR_MERIDIAN_GUARD, "护脉丹", 9, CORE_FORM},
 };
 
 static int Alchemy_RecipeCount(void)
@@ -28,9 +32,20 @@ static const AlchemyRecipe *Alchemy_GetRecipe(int index)
     return &g_alchemy_recipes[index];
 }
 
-static bool Alchemy_RecipeUnlocked(const Player *player, const AlchemyRecipe *recipe)
+static bool Alchemy_RecipeKnown(const Player *player, const AlchemyRecipe *recipe)
+{
+    return player && recipe && recipe->index >= 0 && recipe->index < MAX_ALCHEMY_RECIPES &&
+           player->unlocked_alchemy_recipes[recipe->index];
+}
+
+static bool Alchemy_RecipeRealmReady(const Player *player, const AlchemyRecipe *recipe)
 {
     return player && recipe && player->XIUWEI >= recipe->required_realm;
+}
+
+static bool Alchemy_RecipeUnlocked(const Player *player, const AlchemyRecipe *recipe)
+{
+    return Alchemy_RecipeKnown(player, recipe) && Alchemy_RecipeRealmReady(player, recipe);
 }
 
 static bool Alchemy_CanBrew(const Player *player, const AlchemyRecipe *recipe)
@@ -45,6 +60,9 @@ static int Artifact_UpgradeCost(int level)
     case 0: return 4;
     case 1: return 8;
     case 2: return 14;
+    case 3: return 22;
+    case 4: return 32;
+    case 5: return 45;
     default: return 0;
     }
 }
@@ -173,6 +191,35 @@ static int Artifact_ThunderWoodChance(const Player *player)
 static int Artifact_ThunderWoodDamagePct(const Player *player)
 {
     return Player_HasArtifact(player, ARTIFACT_THUNDER_WOOD_SWORD) ? 4 + Player_ArtifactLevel(player, ARTIFACT_THUNDER_WOOD_SWORD) : 0;
+}
+
+static int Artifact_ScarletSunDamagePct(const Player *player)
+{
+    return Player_HasArtifact(player, ARTIFACT_SCARLET_SUN_FURNACE) ? 3 + Player_ArtifactLevel(player, ARTIFACT_SCARLET_SUN_FURNACE) : 0;
+}
+
+static int Artifact_SoulBellStatusBonus(const Player *player)
+{
+    return Player_HasArtifact(player, ARTIFACT_SOUL_BELL) ? 1 + Player_ArtifactLevel(player, ARTIFACT_SOUL_BELL) / 2 : 0;
+}
+
+static int Artifact_GreenWoodHealPct(const Player *player)
+{
+    return Player_HasArtifact(player, ARTIFACT_GREEN_WOOD_TABLET) ? 10 + Player_ArtifactLevel(player, ARTIFACT_GREEN_WOOD_TABLET) * 5 : 0;
+}
+
+static int Artifact_ThunderJadeQiPct(const Player *player)
+{
+    return Player_HasArtifact(player, ARTIFACT_THUNDER_JADE) ? 6 + Player_ArtifactLevel(player, ARTIFACT_THUNDER_JADE) * 2 : 0;
+}
+
+static float Artifact_HundredMirrorLowHpMultiplier(const Player *player)
+{
+    if (!Player_HasArtifact(player, ARTIFACT_HUNDRED_REFINED_MIRROR))
+        return 1.0f;
+    int level = Player_ArtifactLevel(player, ARTIFACT_HUNDRED_REFINED_MIRROR);
+    float multiplier = 0.88f - 0.04f * level;
+    return multiplier < 0.72f ? 0.72f : multiplier;
 }
 
 static float Artifact_WindCharmEvadeBonus(const Player *player)

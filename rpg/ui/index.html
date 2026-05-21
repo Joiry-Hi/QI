@@ -139,6 +139,14 @@
           <div id="near-death-reason" class="replacement-new"></div>
           <div id="near-death-options" class="near-death-grid"></div>
         </section>
+        <section id="tribulation-panel" class="tribulation-panel hidden">
+          <div class="section-head">
+            <h2>雷劫临身</h2>
+            <span id="tribulation-odds"></span>
+          </div>
+          <div id="tribulation-reason" class="replacement-new"></div>
+          <div id="tribulation-options" class="tribulation-grid"></div>
+        </section>
         <section id="preparation-panel" class="preparation-panel hidden">
           <div class="section-head">
             <h2>局后整备</h2>
@@ -261,6 +269,7 @@
               <h2>道途年表</h2>
               <span id="chronicle-count">0</span>
             </div>
+            <button id="chronicle-open" class="ghost-btn detail-inline-btn">展开年表</button>
             <div id="chronicle-list" class="timeline-list"></div>
           </section>
 
@@ -281,6 +290,19 @@
           </section>
         </div>
       </aside>
+    </div>
+    <div id="chronicle-modal" class="chronicle-modal hidden" role="dialog" aria-modal="true" aria-labelledby="chronicle-title">
+      <div class="chronicle-backdrop"></div>
+      <section class="chronicle-panel">
+        <div class="details-head">
+          <div>
+            <h2 id="chronicle-title">完整道途年表</h2>
+            <p>从入道到终局，一局修仙史尽在此处</p>
+          </div>
+          <button id="chronicle-close" class="ghost-btn">关闭</button>
+        </div>
+        <div id="chronicle-full-list" class="chronicle-full-list"></div>
+      </section>
     </div>
   </div>
   <script src="app.js"></script>

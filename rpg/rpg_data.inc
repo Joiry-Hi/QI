@@ -192,6 +192,91 @@ void Initialize_Databases()
         .prompt_chn = "<%s 祭出斩灵剑，一道看似朴实无华的剑光斩出，却蕴含着斩断法则的无上之力！>", .prompt_eng = "<%s wields the Spirit-Slaying Sword, its simple slash containing the supreme power to sever the laws of reality!>",
         .prereq_skill_id = SKILL_ID_GREAT_GOLDEN_SWORDFORMATION, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = SEVERING, .school_tag = SCHOOL_SWORD};
 
+    g_skill_database[SKILL_ID_KINDLE_ART] = (Skill){
+        .skill_id = SKILL_ID_KINDLE_ART, .action_type = ACTION_TYPE_BOOST, .name_chn = "引火诀", .name_eng = "Kindle Art",
+        .hotkey = 'C', .cost = 2, .rank = 1, .type_id = TYPE_BUFF, .attribute_id = ATTR_FIRE, .base_power = 1.0f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 引动丹田火意，周身热浪渐起。>", .prompt_eng = "<%s kindles inner fire, heat gathering around them.>",
+        .prereq_skill_id = SKILL_ID_NONE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_FIRE,
+        .effects = {{SKILL_EFFECT_ENRAGE, 2, 1.0f}, {SKILL_EFFECT_GAIN_QI_PCT, 12, 1.0f}}, .effect_count = 2};
+    g_skill_database[SKILL_ID_SCARLET_FLAME_GUARD] = (Skill){
+        .skill_id = SKILL_ID_SCARLET_FLAME_GUARD, .action_type = ACTION_TYPE_DEFEND, .name_chn = "赤焰护身", .name_eng = "Scarlet Flame Guard",
+        .hotkey = 'D', .cost = 3, .rank = 2, .type_id = TYPE_SHIELD, .attribute_id = ATTR_FIRE, .base_power = 3.0f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 以赤焰绕体，火光化作护身屏障。>", .prompt_eng = "<%s wraps themselves in scarlet fire as a guarding screen.>",
+        .prereq_skill_id = SKILL_ID_KINDLE_ART, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_FIRE,
+        .effects = {{SKILL_EFFECT_ENRAGE, 1, 1.0f}, {SKILL_EFFECT_GAIN_QI_PCT, 6, 1.0f}}, .effect_count = 2};
+    g_skill_database[SKILL_ID_PALM_THUNDER] = (Skill){
+        .skill_id = SKILL_ID_PALM_THUNDER, .action_type = ACTION_TYPE_RANGED, .name_chn = "掌心雷", .name_eng = "Palm Thunder",
+        .hotkey = 'R', .cost = 4, .rank = 1, .type_id = TYPE_PROJECT, .attribute_id = ATTR_THUNDER, .base_power = 1.7f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_ENEMY,
+        .prompt_chn = "<%s 掌中雷光一闪，电弧直取对手气海。>", .prompt_eng = "<%s releases palm thunder toward the enemy's Qi sea.>",
+        .prereq_skill_id = SKILL_ID_NONE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_THUNDER,
+        .effects = {{SKILL_EFFECT_STEAL_QI, 2, 0.75f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_THUNDER_ESCAPE_STEP] = (Skill){
+        .skill_id = SKILL_ID_THUNDER_ESCAPE_STEP, .action_type = ACTION_TYPE_COUNTER, .name_chn = "雷遁步", .name_eng = "Thunder Escape Step",
+        .hotkey = 'P', .cost = 5, .rank = 2, .type_id = TYPE_REFLECT, .attribute_id = ATTR_THUNDER, .base_power = 0.45f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 脚下雷光乍起，身形在电弧中错开。>", .prompt_eng = "<%s vanishes through a crackle of thunder.>",
+        .prereq_skill_id = SKILL_ID_PALM_THUNDER, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_THUNDER,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 8, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_SOUL_GRASP_CURSE] = (Skill){
+        .skill_id = SKILL_ID_SOUL_GRASP_CURSE, .action_type = ACTION_TYPE_RANGED, .name_chn = "摄魂咒", .name_eng = "Soul Grasp Curse",
+        .hotkey = 'R', .cost = 4, .rank = 1, .type_id = TYPE_DEBUFF, .attribute_id = ATTR_DARK, .base_power = 1.0f,
+        .effect_strength = 2, .effect_chance = 1.0f, .target_type = TARGET_ENEMY,
+        .prompt_chn = "<%s 低诵摄魂咒，阴影攀上对手眉心。>", .prompt_eng = "<%s chants a soul-grasping curse, shadows crawling over the foe.>",
+        .prereq_skill_id = SKILL_ID_NONE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_DARK,
+        .effects = {{SKILL_EFFECT_CURSE, 2, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_SHADOW_QI_RETURN] = (Skill){
+        .skill_id = SKILL_ID_SHADOW_QI_RETURN, .action_type = ACTION_TYPE_BOOST, .name_chn = "幽影回气", .name_eng = "Shadow Qi Return",
+        .hotkey = 'C', .cost = 3, .rank = 2, .type_id = TYPE_BUFF, .attribute_id = ATTR_DARK, .base_power = 1.0f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 牵引幽影回流，残魂化作气机。>", .prompt_eng = "<%s draws shadows inward, turning lingering souls into Qi.>",
+        .prereq_skill_id = SKILL_ID_SOUL_GRASP_CURSE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_DARK,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 22, 1.0f}, {SKILL_EFFECT_HEAL_HP_PCT, 6, 1.0f}}, .effect_count = 2};
+    g_skill_database[SKILL_ID_GREEN_WOOD_BREATH] = (Skill){
+        .skill_id = SKILL_ID_GREEN_WOOD_BREATH, .action_type = ACTION_TYPE_HEAL, .name_chn = "青木生息", .name_eng = "Green Wood Breath",
+        .hotkey = 'H', .cost = 3, .rank = 1, .type_id = TYPE_HEAL, .attribute_id = ATTR_WOOD, .base_power = 1.5f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 纳青木生息入体，伤势缓缓平复。>", .prompt_eng = "<%s breathes in green wood vitality.>",
+        .prereq_skill_id = SKILL_ID_NONE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_BASIC,
+        .effects = {{SKILL_EFFECT_HEAL_HP_PCT, 12, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_REJUVENATE_DETOX] = (Skill){
+        .skill_id = SKILL_ID_REJUVENATE_DETOX, .action_type = ACTION_TYPE_HEAL, .name_chn = "回春化毒", .name_eng = "Rejuvenating Detox",
+        .hotkey = 'H', .cost = 5, .rank = 2, .type_id = TYPE_HEAL, .attribute_id = ATTR_WOOD, .base_power = 2.2f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 运转回春化毒之法，木气洗净经络。>", .prompt_eng = "<%s circulates rejuvenating wood Qi to cleanse the meridians.>",
+        .prereq_skill_id = SKILL_ID_GREEN_WOOD_BREATH, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_BASIC,
+        .effects = {{SKILL_EFFECT_HEAL_HP_PCT, 15, 1.0f}, {SKILL_EFFECT_CLEANSE, 1, 1.0f}}, .effect_count = 2};
+    g_skill_database[SKILL_ID_IRON_BONE_ART] = (Skill){
+        .skill_id = SKILL_ID_IRON_BONE_ART, .action_type = ACTION_TYPE_DEFEND, .name_chn = "铁骨诀", .name_eng = "Iron Bone Art",
+        .hotkey = 'D', .cost = 2, .rank = 1, .type_id = TYPE_RESIST, .attribute_id = ATTR_METAL, .base_power = 0.45f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 运转铁骨诀，筋骨如金石相击。>", .prompt_eng = "<%s hardens their bones like tempered iron.>",
+        .prereq_skill_id = SKILL_ID_NONE, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_DEFENSE,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 6, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_BLACK_ARMOR_REBOUND] = (Skill){
+        .skill_id = SKILL_ID_BLACK_ARMOR_REBOUND, .action_type = ACTION_TYPE_COUNTER, .name_chn = "玄甲反震", .name_eng = "Black Armor Rebound",
+        .hotkey = 'P', .cost = 4, .rank = 2, .type_id = TYPE_REFLECT, .attribute_id = ATTR_METAL, .base_power = 0.55f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 玄甲灵纹亮起，准备将攻势反震回去。>", .prompt_eng = "<%s lights black armor glyphs, ready to rebound force.>",
+        .prereq_skill_id = SKILL_ID_IRON_BONE_ART, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_DEFENSE,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 10, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_MICROCOSMIC_ORBIT] = (Skill){
+        .skill_id = SKILL_ID_MICROCOSMIC_ORBIT, .action_type = ACTION_TYPE_GAIN_QI, .name_chn = "小周天", .name_eng = "Microcosmic Orbit",
+        .hotkey = 'Q', .cost = 0, .rank = 1, .type_id = TYPE_BUFF, .attribute_id = ATTR_SPIRITUAL, .base_power = 1.0f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 运转小周天，气机自经脉回环。>", .prompt_eng = "<%s circulates a microcosmic orbit of Qi.>",
+        .prereq_skill_id = SKILL_ID_GAIN_QI, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = REFINING, .school_tag = SCHOOL_QI,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 10, 1.0f}}, .effect_count = 1};
+    g_skill_database[SKILL_ID_RETURN_TO_ORIGIN] = (Skill){
+        .skill_id = SKILL_ID_RETURN_TO_ORIGIN, .action_type = ACTION_TYPE_BOOST, .name_chn = "归元术", .name_eng = "Return to Origin",
+        .hotkey = 'C', .cost = 5, .rank = 2, .type_id = TYPE_BUFF, .attribute_id = ATTR_SPIRITUAL, .base_power = 1.0f,
+        .effect_strength = 0, .effect_chance = 0, .target_type = TARGET_SELF,
+        .prompt_chn = "<%s 收束散乱真元，气机归于一线。>", .prompt_eng = "<%s gathers scattered essence back to one origin.>",
+        .prereq_skill_id = SKILL_ID_MICROCOSMIC_ORBIT, .prereq_action_type = ACTION_TYPE_NONE, .required_realm = FOUNDATION, .school_tag = SCHOOL_QI,
+        .effects = {{SKILL_EFFECT_GAIN_QI_PCT, 28, 1.0f}, {SKILL_EFFECT_CLEANSE, 1, 1.0f}}, .effect_count = 2};
+
     g_artifact_database[ARTIFACT_QI_GOURD] = (Artifact){.id = ARTIFACT_QI_GOURD, .name_chn = "聚灵葫芦", .name_eng = "Qi Gourd", .desc_chn = "集气额外获得1点气，升级后继续提高。", .desc_eng = "Gain extra QI when gathering; upgrades improve it.", .rarity = RARITY_COMMON, .reward_school_bias = SCHOOL_QI};
     g_artifact_database[ARTIFACT_TURTLE_ARMOR] = (Artifact){.id = ARTIFACT_TURTLE_ARMOR, .name_chn = "玄龟甲", .name_eng = "Turtle Armor", .desc_chn = "防御或反击时减伤，升级后减伤更强。", .desc_eng = "Reduce damage while defending or countering; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_DEFENSE};
     g_artifact_database[ARTIFACT_BLOOD_BANNER] = (Artifact){.id = ARTIFACT_BLOOD_BANNER, .name_chn = "血煞幡", .name_eng = "Blood Banner", .desc_chn = "血系伤害追加流血，但治疗降低；升级后流血更重。", .desc_eng = "Blood attacks add bleeding; healing is weaker. Upgrades deepen bleeding.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_BLOOD};
@@ -202,6 +287,11 @@ void Initialize_Databases()
     g_artifact_database[ARTIFACT_BREAKTHROUGH_SEAL] = (Artifact){.id = ARTIFACT_BREAKTHROUGH_SEAL, .name_chn = "破境印", .name_eng = "Breakthrough Seal", .desc_chn = "突破概率提高，失败惩罚加重；升级后成功率继续提高。", .desc_eng = "Better breakthrough odds, harsher failure. Upgrades improve odds.", .rarity = RARITY_EPIC, .reward_school_bias = SCHOOL_QI, .breakthrough_pct = 10};
     g_artifact_database[ARTIFACT_WIND_CHARM] = (Artifact){.id = ARTIFACT_WIND_CHARM, .name_chn = "风行符佩", .name_eng = "Wind Charm", .desc_chn = "闪避提高，受重击后短暂失效；升级后闪避更高。", .desc_eng = "Higher evasion, disabled briefly after smites. Upgrades improve evasion.", .rarity = RARITY_COMMON, .reward_school_bias = SCHOOL_DEFENSE};
     g_artifact_database[ARTIFACT_FORMLESS_JADE] = (Artifact){.id = ARTIFACT_FORMLESS_JADE, .name_chn = "无相玉", .name_eng = "Formless Jade", .desc_chn = "第一次破格获得技能无代价。", .desc_eng = "First bypassed skill is free.", .rarity = RARITY_LEGENDARY, .reward_school_bias = SCHOOL_DARK};
+    g_artifact_database[ARTIFACT_SCARLET_SUN_FURNACE] = (Artifact){.id = ARTIFACT_SCARLET_SUN_FURNACE, .name_chn = "赤阳炉", .name_eng = "Scarlet Sun Furnace", .desc_chn = "火法命中追加少量灼伤，升级后伤害提高。", .desc_eng = "Fire skills add a small burn burst; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_FIRE};
+    g_artifact_database[ARTIFACT_SOUL_BELL] = (Artifact){.id = ARTIFACT_SOUL_BELL, .name_chn = "镇魂铃", .name_eng = "Soul Bell", .desc_chn = "幽冥技能施加的诅咒和夺气更强，升级后效果提高。", .desc_eng = "Dark skills apply stronger curse and Qi disruption; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_DARK};
+    g_artifact_database[ARTIFACT_GREEN_WOOD_TABLET] = (Artifact){.id = ARTIFACT_GREEN_WOOD_TABLET, .name_chn = "青木灵圭", .name_eng = "Green Wood Tablet", .desc_chn = "治疗额外恢复元神，升级后治疗加成提高。", .desc_eng = "Healing restores extra HP; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_BASIC, .max_hp_pct = 5};
+    g_artifact_database[ARTIFACT_THUNDER_JADE] = (Artifact){.id = ARTIFACT_THUNDER_JADE, .name_chn = "雷纹玉佩", .name_eng = "Thunder Pattern Jade", .desc_chn = "雷法命中后回气，升级后回气提高。", .desc_eng = "Thunder skills refund Qi on hit; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_THUNDER, .max_qi_pct = 5};
+    g_artifact_database[ARTIFACT_HUNDRED_REFINED_MIRROR] = (Artifact){.id = ARTIFACT_HUNDRED_REFINED_MIRROR, .name_chn = "百炼护心镜", .name_eng = "Hundred-Refined Heart Mirror", .desc_chn = "元神低于一半时减伤，升级后减伤更强。", .desc_eng = "Reduce damage while below half HP; upgrades improve it.", .rarity = RARITY_RARE, .reward_school_bias = SCHOOL_DEFENSE, .max_hp_pct = 5};
 
     g_elixir_database[ELIXIR_HEALING] = (Elixir){.id = ELIXIR_HEALING, .name_chn = "回春丹", .name_eng = "Healing Pill", .desc_chn = "立即恢复元神。", .desc_eng = "Restore HP immediately.", .rarity = RARITY_COMMON};
     g_elixir_database[ELIXIR_QI] = (Elixir){.id = ELIXIR_QI, .name_chn = "聚气丹", .name_eng = "Qi Pill", .desc_chn = "立即获得气。", .desc_eng = "Gain QI immediately.", .rarity = RARITY_COMMON};
@@ -209,6 +299,10 @@ void Initialize_Databases()
     g_elixir_database[ELIXIR_BERSERK] = (Elixir){.id = ELIXIR_BERSERK, .name_chn = "爆元丹", .name_eng = "Essence Burst Pill", .desc_chn = "本场战斗激怒，战后扣血。", .desc_eng = "Gain rage this battle, lose HP after.", .rarity = RARITY_RARE};
     g_elixir_database[ELIXIR_BREAKTHROUGH] = (Elixir){.id = ELIXIR_BREAKTHROUGH, .name_chn = "破境丹", .name_eng = "Breakthrough Pill", .desc_chn = "本场突破概率提高。", .desc_eng = "Improve breakthrough odds this battle.", .rarity = RARITY_EPIC};
     g_elixir_database[ELIXIR_DISASTER_WARD] = (Elixir){.id = ELIXIR_DISASTER_WARD, .name_chn = "化劫丹", .name_eng = "Disaster Ward Pill", .desc_chn = "下一次奇遇负面结果降级。", .desc_eng = "Soften the next bad encounter result.", .rarity = RARITY_EPIC};
+    g_elixir_database[ELIXIR_MERIDIAN_GUARD] = (Elixir){.id = ELIXIR_MERIDIAN_GUARD, .name_chn = "护脉丹", .name_eng = "Meridian Guard Pill", .desc_chn = "突破概率小幅提高，并降低失败反噬。", .desc_eng = "Slightly improve breakthrough odds and reduce backlash.", .rarity = RARITY_RARE};
+    g_elixir_database[ELIXIR_FOCUS_INSIGHT] = (Elixir){.id = ELIXIR_FOCUS_INSIGHT, .name_chn = "凝神丹", .name_eng = "Focus Insight Pill", .desc_chn = "获得修为理解，并补充少量修为。", .desc_eng = "Gain minor understanding and some cultivation.", .rarity = RARITY_RARE};
+    g_elixir_database[ELIXIR_EXORCISM] = (Elixir){.id = ELIXIR_EXORCISM, .name_chn = "辟邪丹", .name_eng = "Exorcism Pill", .desc_chn = "清除负面状态，并压低业力雷劫压力。", .desc_eng = "Clear negative states and reduce karmic pressure.", .rarity = RARITY_RARE};
+    g_elixir_database[ELIXIR_WOOD_SPIRIT] = (Elixir){.id = ELIXIR_WOOD_SPIRIT, .name_chn = "木灵丹", .name_eng = "Wood Spirit Pill", .desc_chn = "恢复元神，并返还少量药材。", .desc_eng = "Restore HP and refund a little herb material.", .rarity = RARITY_COMMON};
 
     Initialize_CustomContent();
 }

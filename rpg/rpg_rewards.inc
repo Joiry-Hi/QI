@@ -47,7 +47,12 @@ static void PrintRewardChoice(int index, const RewardChoice *choice)
     }
 }
 
-static SkillID PickRewardSkill(Player *player, RewardRarity rarity, bool bypass)
+#define REWARD_THEME_BALANCED 0
+#define REWARD_THEME_ELIXIR 1
+#define REWARD_THEME_THUNDER 2
+#define REWARD_THEME_GHOST 3
+
+static SkillID PickRewardSkillForSchool(Player *player, RewardRarity rarity, bool bypass, SchoolTag school)
 {
     SkillID candidates[TOTAL_SKILLS];
     int count = 0;
@@ -64,6 +69,8 @@ static SkillID PickRewardSkill(Player *player, RewardRarity rarity, bool bypass)
             continue;
         if (!bypass && !Skill_PrereqMet(player, (SkillID)i))
             continue;
+        if (school > SCHOOL_NONE && school < TOTAL_SCHOOLS && skill->school_tag != school)
+            continue;
         candidates[count++] = (SkillID)i;
     }
     if (count == 0)
@@ -71,29 +78,62 @@ static SkillID PickRewardSkill(Player *player, RewardRarity rarity, bool bypass)
     return candidates[Run_Rand() % count];
 }
 
-static ArtifactID PickRewardArtifactForPlayer(const Player *player, RewardRarity rarity)
+static SkillID PickRewardSkill(Player *player, RewardRarity rarity, bool bypass)
+{
+    return PickRewardSkillForSchool(player, rarity, bypass, SCHOOL_NONE);
+}
+
+static ArtifactID PickRewardArtifactForSchool(const Player *player, RewardRarity rarity, SchoolTag school)
 {
     ArtifactID candidates[TOTAL_ARTIFACTS];
     int count = 0;
     for (int i = 0; i < TOTAL_ARTIFACTS; i++)
     {
-        if (g_artifact_database[i].id == i && g_artifact_database[i].rarity <= rarity &&
-            (!player || !Player_HasArtifact(player, (ArtifactID)i)))
+        if (i > ARTIFACT_NONE && g_artifact_database[i].id == i &&
+            g_artifact_database[i].name_chn != NULL &&
+            g_artifact_database[i].rarity <= rarity &&
+            (!player || !Player_HasArtifact(player, (ArtifactID)i)) &&
+            (school <= SCHOOL_NONE || school >= TOTAL_SCHOOLS || g_artifact_database[i].reward_school_bias == school))
             candidates[count++] = (ArtifactID)i;
     }
     return count ? candidates[Run_Rand() % count] : ARTIFACT_NONE;
 }
 
-static ElixirID PickRewardElixir(RewardRarity rarity)
+static ArtifactID PickRewardArtifactForPlayer(const Player *player, RewardRarity rarity)
+{
+    return PickRewardArtifactForSchool(player, rarity, SCHOOL_NONE);
+}
+
+static ElixirID PickRewardElixirForTheme(RewardRarity rarity, int theme)
 {
     ElixirID candidates[TOTAL_ELIXIRS];
     int count = 0;
     for (int i = 0; i < TOTAL_ELIXIRS; i++)
     {
-        if (g_elixir_database[i].id == i && g_elixir_database[i].rarity <= rarity)
-            candidates[count++] = (ElixirID)i;
+        if (g_elixir_database[i].id != i || g_elixir_database[i].name_chn == NULL ||
+            g_elixir_database[i].rarity > rarity)
+            continue;
+        if (theme == REWARD_THEME_ELIXIR &&
+            !((ElixirID)i == ELIXIR_WOOD_SPIRIT || (ElixirID)i == ELIXIR_EXORCISM ||
+              (ElixirID)i == ELIXIR_FOCUS_INSIGHT || (ElixirID)i == ELIXIR_HEALING ||
+              (ElixirID)i == ELIXIR_QI || (ElixirID)i == ELIXIR_CLEAR_MIND))
+            continue;
+        if (theme == REWARD_THEME_THUNDER &&
+            !((ElixirID)i == ELIXIR_DISASTER_WARD || (ElixirID)i == ELIXIR_MERIDIAN_GUARD ||
+              (ElixirID)i == ELIXIR_BREAKTHROUGH || (ElixirID)i == ELIXIR_QI))
+            continue;
+        if (theme == REWARD_THEME_GHOST &&
+            !((ElixirID)i == ELIXIR_EXORCISM || (ElixirID)i == ELIXIR_CLEAR_MIND ||
+              (ElixirID)i == ELIXIR_FOCUS_INSIGHT || (ElixirID)i == ELIXIR_DISASTER_WARD))
+            continue;
+        candidates[count++] = (ElixirID)i;
     }
     return count ? candidates[Run_Rand() % count] : ELIXIR_HEALING;
+}
+
+static ElixirID PickRewardElixir(RewardRarity rarity)
+{
+    return PickRewardElixirForTheme(rarity, REWARD_THEME_BALANCED);
 }
 
 void Generate_RewardChoices(Player *player, RewardChoice choices[REWARD_CHOICE_COUNT])

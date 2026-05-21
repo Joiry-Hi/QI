@@ -4,6 +4,7 @@ const state = {
   skillTreeOpen: false,
   workshopOpen: false,
   detailsOpen: false,
+  chronicleOpen: false,
   workshopTab: "skills",
   content: { skills: [], artifacts: [], elixirs: [] },
   workshopDirty: false,
@@ -24,6 +25,7 @@ const phaseNames = {
   talent_choice: "道基天赋",
   preparation: "局后整备",
   route_choice: "选择路线",
+  tribulation_event: "雷劫",
   near_death_choice: "濒死抉择",
   encounter: "奇遇",
   between_battles: "战斗间隙",
@@ -175,7 +177,8 @@ function renderCombatFeed(snapshot) {
   $("battle-intent").innerHTML = `
     <strong>${esc(intent.label || "敌意未明")}</strong>
     <span>${esc(intent.hint || "敌人仍在试探。")}</span>
-    ${boss.key && boss.key !== "none" ? `<em>${esc(boss.label || "Boss")}</em>` : ""}
+    ${boss.key && boss.key !== "none" ? `<em>${esc(boss.name || "Boss")} · ${esc(boss.label || "")}</em>` : ""}
+    ${boss.counter_hint && boss.key !== "none" ? `<span>${esc(boss.counter_hint)}</span>` : ""}
   `;
 }
 
@@ -314,16 +317,94 @@ function renderRoutes(snapshot) {
       <div class="fit-row">
         <span class="fit-badge">${esc(route.enemy_realm || "凡人")}</span>
         <span class="fit-badge">${esc(route.reward_bias || "均衡")}</span>
+        <span class="fit-badge">${route.years_preview || 0} 年</span>
+        <span class="fit-badge">${esc(route.tribulation_preview || "雷劫风险低")}</span>
         ${route.hp_cost_pct ? `<span class="fit-badge">元神 -${route.hp_cost_pct}%</span>` : ""}
         ${route.cultivation_cost ? `<span class="fit-badge">修为 -${route.cultivation_cost}</span>` : ""}
         <span class="fit-badge">劫气 ${route.debt_delta > 0 ? "+" : ""}${route.debt_delta || 0}</span>
         ${route.special_rule ? `<span class="fit-badge">${esc(route.special_rule)}</span>` : ""}
       </div>
-      <div class="reward-desc">${esc(route.material_preview || "")} · ${esc(route.enemy_hint || "")}</div>
+      <div class="reward-desc">${esc(route.story_hint || "")}</div>
+      <div class="reward-desc">${esc(route.material_preview || "")} · ${esc(route.reward_preview || "")} · ${esc(route.enemy_hint || "")}</div>
+      ${route.chain_preview ? `<div class="reward-desc route-chain">${esc(route.chain_preview)}</div>` : ""}
       ${route.special_rule ? `<div class="reward-desc">${esc(route.special_hint || "")}</div>` : ""}
       <div class="reward-desc">${route.reward_bias === "还阳" ? "若修为足够，将尝试还阳；否则转化为护魂修为。" : `即得：${esc(reward.name || "修炼资源")} ${reward.amount ? `x${reward.amount}` : ""}`}</div>
     `;
     card.addEventListener("click", () => api("/api/route", { index: route.index }));
+    wrap.appendChild(card);
+  });
+}
+
+function chronicleKindName(kind) {
+  const names = {
+    start: "入道",
+    route: "路线",
+    time: "岁月",
+    breakthrough: "突破",
+    talent: "天赋",
+    tribulation: "渡劫",
+    heart: "心魔",
+    near_death: "濒死",
+    rebirth: "还阳",
+    ascension: "飞升",
+    lifespan: "寿尽",
+    soul_decay: "魂火",
+    tribulation_death: "雷劫",
+    defeat: "败亡",
+  };
+  return names[kind] || "事件";
+}
+
+function renderChronicle(snapshot) {
+  const chronicle = snapshot.chronicle || [];
+  $("chronicle-count").textContent = chronicle.length;
+  $("chronicle-list").innerHTML = chronicle.length
+    ? chronicle.slice(-8).reverse().map((item) => `
+      <div class="timeline-item ${esc(item.kind || "event")}">
+        <strong>${item.age || 0}岁 · ${esc(item.realm || "")}</strong>
+        <span>${esc(item.text || "")}</span>
+      </div>
+    `).join("")
+    : `<div class="action-meta">道途尚未留下更多痕迹。</div>`;
+  $("chronicle-open").disabled = !chronicle.length;
+  $("chronicle-modal").classList.toggle("hidden", !state.chronicleOpen);
+  $("chronicle-full-list").innerHTML = chronicle.length
+    ? chronicle.map((item, index) => `
+      <article class="chronicle-full-item ${esc(item.kind || "event")}">
+        <div class="chronicle-marker">${index + 1}</div>
+        <div>
+          <div class="chronicle-meta">
+            <span>${item.age || 0}岁</span>
+            <span>${esc(item.realm || "")}</span>
+            <span>${esc(chronicleKindName(item.kind))}</span>
+          </div>
+          <p>${esc(item.text || "")}</p>
+        </div>
+      </article>
+    `).join("")
+    : `<div class="action-meta">暂无年表。</div>`;
+}
+
+function renderTribulation(snapshot) {
+  const panel = $("tribulation-panel");
+  const wrap = $("tribulation-options");
+  const data = snapshot.tribulation_event || {};
+  const visible = snapshot.phase === "tribulation_event" && data.active;
+  panel.classList.toggle("hidden", !visible);
+  wrap.innerHTML = "";
+  if (!visible) return;
+  $("tribulation-odds").textContent = `基础成功率 ${data.success_chance || 0}%`;
+  $("tribulation-reason").textContent = data.reason || "劫云骤聚，天雷将落。";
+  (data.options || []).forEach((option) => {
+    const card = document.createElement("button");
+    card.className = `tribulation-card ${option.mode || ""}`;
+    card.disabled = !option.available;
+    card.innerHTML = `
+      <div class="reward-title"><span>${esc(option.title || "渡劫")}</span><span>${option.success_chance || 0}%</span></div>
+      <div class="reward-desc">${esc(option.desc || "")}</div>
+      <div class="fit-row"><span class="fit-badge">${esc(option.cost || "")}</span></div>
+    `;
+    card.addEventListener("click", () => api("/api/tribulation", { choice: option.index }));
     wrap.appendChild(card);
   });
 }
@@ -362,6 +443,7 @@ function renderPreparation(snapshot) {
   $("preparation-materials").textContent = `灵材 ${materials.spirit || 0} · 药材 ${materials.herbs || 0}`;
   $("artifact-upgrades").innerHTML = "";
   $("alchemy-recipes").innerHTML = "";
+  document.querySelectorAll(".alchemy-hint").forEach((node) => node.remove());
   if (!visible) return;
 
   const artifacts = snapshot.artifacts || [];
@@ -372,7 +454,7 @@ function renderPreparation(snapshot) {
       const btn = document.createElement("button");
       btn.className = "preparation-card";
       btn.disabled = !item.can_upgrade;
-      const capped = (item.level || 0) >= 3;
+      const capped = (item.level || 0) >= (item.max_level || state.snapshot?.limits?.artifact_max_level || 3);
       btn.innerHTML = `
         <div class="reward-title"><span>${esc(item.name || "未知法器")} +${item.level || 0}</span><span>${capped ? "满级" : `灵材 ${item.upgrade_cost || 0}`}</span></div>
         <div class="fit-row">
@@ -387,14 +469,16 @@ function renderPreparation(snapshot) {
   }
 
   const recipes = snapshot.crafting?.recipes || [];
+  const crafting = snapshot.crafting || {};
   recipes.forEach((recipe) => {
     const btn = document.createElement("button");
-    btn.className = "preparation-card";
+    btn.className = "preparation-card alchemy-card";
     btn.disabled = !recipe.can_brew;
+    const status = recipe.can_brew ? "可炼" : (recipe.realm_ready ? "药材不足" : `需 ${esc(recipe.required_realm || "")}`);
     btn.innerHTML = `
       <div class="reward-title"><span>${esc(recipe.name || "丹方")}</span><span>药材 ${recipe.cost || 0}</span></div>
       <div class="fit-row">
-        <span class="fit-badge">${recipe.unlocked ? "可炼" : `需 ${esc(recipe.required_realm || "")}`}</span>
+        <span class="fit-badge">${status}</span>
         ${recipe.custom ? `<span class="fit-badge">自创</span>` : ""}
       </div>
       <div class="reward-desc">${esc(recipe.desc || "")}</div>
@@ -403,6 +487,9 @@ function renderPreparation(snapshot) {
     $("alchemy-recipes").appendChild(btn);
   });
   if (!recipes.length) $("alchemy-recipes").innerHTML = `<div class="action-meta">暂无丹方</div>`;
+  if (crafting.locked_count) {
+    $("alchemy-recipes").insertAdjacentHTML("afterend", `<div class="action-meta alchemy-hint">未掌握丹方 ${crafting.locked_count} · ${esc(crafting.unlock_hint || "")}</div>`);
+  }
 }
 
 function renderReplacement(snapshot) {
@@ -642,7 +729,8 @@ function renderEncounter(snapshot) {
       : "灵息渐稳，下一场战斗正在逼近。";
     $("encounter-penalty").textContent = "";
     $("encounter-reward").textContent = "调整构筑后继续前行。";
-    $("next-battle").innerHTML = `<strong>下一战：第 ${next.index || 0} 战 · ${esc(next.type || "normal")} · ${esc(next.risk || "普通")}</strong><br>${esc(next.enemy || "未知对手")} · ${esc(next.tendency || "未知倾向")} · ${esc(next.enemy_realm || "凡人")}<br>奖励倾向：${esc(next.reward_bias || "均衡")}<br>${esc(next.threat || "")}`;
+    const bossLine = next.boss_name ? `<br>Boss：${esc(next.boss_name)} · ${esc(next.boss_hint || "")}` : "";
+    $("next-battle").innerHTML = `<strong>下一战：第 ${next.index || 0} 战 · ${esc(next.type || "normal")} · ${esc(next.risk || "普通")}</strong><br>${esc(next.enemy || "未知对手")} · ${esc(next.tendency || "未知倾向")} · ${esc(next.enemy_realm || "凡人")}<br>奖励倾向：${esc(next.reward_bias || "均衡")}${bossLine}<br>${esc(next.threat || "")}`;
     return;
   }
   const enc = snapshot.encounter || {};
@@ -650,7 +738,8 @@ function renderEncounter(snapshot) {
   $("encounter-text").textContent = text(enc.text, "天地异象一闪而过。");
   $("encounter-penalty").textContent = enc.penalty ? `损失 ${enc.penalty} 生命` : "无损";
   $("encounter-reward").textContent = enc.reward ? `获得：${text(enc.reward.name, "修炼资源")} ${enc.reward.amount ? `x${enc.reward.amount}` : ""}` : "";
-  $("next-battle").innerHTML = `<strong>下一战：第 ${next.index || 0} 战 · ${esc(next.type || "normal")} · ${esc(next.risk || "普通")}</strong><br>${esc(next.enemy || "未知对手")} · ${esc(next.tendency || "未知倾向")} · ${esc(next.enemy_realm || "凡人")}<br>奖励倾向：${esc(next.reward_bias || "均衡")}<br>${esc(next.threat || "")}`;
+  const bossLine = next.boss_name ? `<br>Boss：${esc(next.boss_name)} · ${esc(next.boss_hint || "")}` : "";
+  $("next-battle").innerHTML = `<strong>下一战：第 ${next.index || 0} 战 · ${esc(next.type || "normal")} · ${esc(next.risk || "普通")}</strong><br>${esc(next.enemy || "未知对手")} · ${esc(next.tendency || "未知倾向")} · ${esc(next.enemy_realm || "凡人")}<br>奖励倾向：${esc(next.reward_bias || "均衡")}${bossLine}<br>${esc(next.threat || "")}`;
 }
 
 function renderSide(snapshot) {
@@ -711,11 +800,7 @@ function renderSide(snapshot) {
     <div class="action-meta">${esc(trib.hint || "")}</div>
   `;
 
-  const chronicle = snapshot.chronicle || [];
-  $("chronicle-count").textContent = chronicle.length;
-  $("chronicle-list").innerHTML = chronicle.length
-    ? chronicle.slice(-8).reverse().map((item) => `<div class="timeline-item"><strong>${item.age || 0}岁 · ${esc(item.realm || "")}</strong><span>${esc(item.text || "")}</span></div>`).join("")
-    : `<div class="action-meta">道途尚未留下更多痕迹。</div>`;
+  renderChronicle(snapshot);
 
   $("soul-state").textContent = text(player.soul_state_label, "肉身");
   $("soul-side").innerHTML = player.soul_state === "ghost"
@@ -729,7 +814,7 @@ function renderSide(snapshot) {
     : `<span class="pill">暂无天赋</span>`;
 
   const artifacts = snapshot.artifacts || [];
-  $("artifact-count").textContent = `${artifacts.length} / 3`;
+  $("artifact-count").textContent = `${artifacts.length} / ${snapshot.limits?.artifact_slots || artifacts[0]?.slot_limit || 4}`;
   $("artifacts").innerHTML = artifacts.length
     ? artifacts.map((item) => `<span class="pill" title="${esc(item.desc)}">${esc(item.name || "未知法器")} +${item.level || 0} · ${esc(item.resonance || "无共鸣")}</span>`).join("")
     : `<span class="pill">暂无法器</span>`;
@@ -778,6 +863,7 @@ function render(snapshot, options = {}) {
   $("phase-line").textContent = `${phaseNames[snapshot.phase] || snapshot.phase} · ${text(snapshot.build?.archetype, "构筑未定")}`;
   $("details-modal").classList.toggle("hidden", !state.detailsOpen);
   $("details-toggle").classList.toggle("active", state.detailsOpen);
+  $("chronicle-modal").classList.toggle("hidden", !state.chronicleOpen);
   $("round-number").textContent = `第 ${snapshot.round || 0} 回合`;
   renderFighter("player", snapshot.player);
   renderFighter("enemy", snapshot.enemy);
@@ -792,6 +878,7 @@ function render(snapshot, options = {}) {
   renderHeartDemon(snapshot);
   renderTalentChoice(snapshot);
   renderNearDeath(snapshot);
+  renderTribulation(snapshot);
   renderPreparation(snapshot);
   renderRoutes(snapshot);
   renderEncounter(snapshot);
@@ -850,6 +937,20 @@ $("details-close").addEventListener("click", () => {
 $("details-modal").addEventListener("click", (event) => {
   if (event.target.classList.contains("details-backdrop")) {
     state.detailsOpen = false;
+    render(state.snapshot || {}, { preserveWorkshop: true });
+  }
+});
+$("chronicle-open").addEventListener("click", () => {
+  state.chronicleOpen = true;
+  render(state.snapshot || {}, { preserveWorkshop: true });
+});
+$("chronicle-close").addEventListener("click", () => {
+  state.chronicleOpen = false;
+  render(state.snapshot || {}, { preserveWorkshop: true });
+});
+$("chronicle-modal").addEventListener("click", (event) => {
+  if (event.target.classList.contains("chronicle-backdrop")) {
+    state.chronicleOpen = false;
     render(state.snapshot || {}, { preserveWorkshop: true });
   }
 });

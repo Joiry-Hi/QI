@@ -182,11 +182,21 @@ typedef struct {
     int primary_count;
     int elixir_count;
     int artifact_count;
+    int hp_pct;
+    int qi;
+    int max_qi;
+    int bleeding;
+    int cursed;
+    int enraged;
+    ActionType current_action;
     bool sword_pressure;
     bool qi_pressure;
     bool defensive_shell;
     bool dark_pressure;
     bool blood_pressure;
+    bool high_qi;
+    bool low_hp;
+    bool status_pressure;
 } AIThreatProfile;
 
 static AIThreatProfile AI_ReadThreatProfile(const Player *opponent)
@@ -197,11 +207,21 @@ static AIThreatProfile AI_ReadThreatProfile(const Player *opponent)
         build.primary_count,
         opponent->elixir_count,
         opponent->artifact_count,
+        opponent->HP * 100 / Player_MaxHP(opponent),
+        opponent->QI,
+        Player_MaxQI(opponent),
+        opponent->bleeding,
+        opponent->cursed,
+        opponent->enraged,
+        opponent->current_action_type,
         build.primary_school == SCHOOL_SWORD && build.primary_count >= 3,
         build.primary_school == SCHOOL_QI && build.primary_count >= 3,
         build.primary_school == SCHOOL_DEFENSE && build.primary_count >= 3,
         build.primary_school == SCHOOL_DARK && build.primary_count >= 2,
-        build.primary_school == SCHOOL_BLOOD && build.primary_count >= 2};
+        build.primary_school == SCHOOL_BLOOD && build.primary_count >= 2,
+        opponent->QI >= Player_MaxQI(opponent) / 2 || opponent->QI >= 6,
+        opponent->HP * 100 / Player_MaxHP(opponent) <= 35,
+        opponent->bleeding > 0 || opponent->cursed > 0 || opponent->enraged > 0};
     return profile;
 }
 
@@ -348,6 +368,7 @@ static void Player_ResetRunFields(Player *player)
     player->cultivation = 0;
     player->spirit_materials = 0;
     player->herb_materials = 0;
+    memset(player->unlocked_alchemy_recipes, 0, sizeof(player->unlocked_alchemy_recipes));
     player->minor_understanding = 0;
     player->minor_realm_level = 0;
     player->berserk_elixir_turns = 0;
@@ -462,6 +483,20 @@ void Oneway_Solution(Player *attacker, Player *defender)
         base_damage += bonus;
         CHN_PRINT("[雷击木剑] 雷痕爆发，追加 %d 点伤害！\n", bonus);
     }
+    if (Player_HasArtifact(attacker, ARTIFACT_SCARLET_SUN_FURNACE) &&
+        attacker_skill->school_tag == SCHOOL_FIRE)
+    {
+        int bonus = Player_PercentOfMaxHP(attacker, Artifact_ScarletSunDamagePct(attacker));
+        base_damage += bonus;
+        CHN_PRINT("[赤阳炉] 火意助燃，追加 %d 点灼伤！\n", bonus);
+    }
+    if (Player_HasArtifact(attacker, ARTIFACT_THUNDER_JADE) &&
+        attacker_skill->school_tag == SCHOOL_THUNDER)
+    {
+        int qi = Player_PercentOfMaxQI(attacker, Artifact_ThunderJadeQiPct(attacker));
+        attacker->QI_change += qi;
+        CHN_PRINT("[雷纹玉佩] 雷纹回响，返还 %d 点气。\n", qi);
+    }
 
     // 特殊处理 Burst 类型的伤害
     if (attacker_skill->type_id == TYPE_BURST)
@@ -530,6 +565,12 @@ void Oneway_Solution(Player *attacker, Player *defender)
         final_damage *= Artifact_TurtleArmorDamageMultiplier(defender);
         CHN_PRINT("[玄龟甲] 护住要害，伤害降低。\n");
     }
+    if (Player_HasArtifact(defender, ARTIFACT_HUNDRED_REFINED_MIRROR) &&
+        defender->HP <= Player_MaxHP(defender) / 2)
+    {
+        final_damage *= Artifact_HundredMirrorLowHpMultiplier(defender);
+        CHN_PRINT("[百炼护心镜] 护住心脉，低血伤害降低。\n");
+    }
 
     // --- 步骤 6: 根据技能属性施加效果 ---
     switch (attacker_skill->attribute_id)
@@ -547,7 +588,10 @@ void Oneway_Solution(Player *attacker, Player *defender)
         int qi_stolen = (defender->QI >= attacker_skill->effect_strength) ? attacker_skill->effect_strength : defender->QI;
         if (Player_SkillRefine(attacker, attacker_skill->skill_id) == SKILL_REFINE_STATUS && qi_stolen < defender->QI)
             qi_stolen += 1;
+        if (Player_HasArtifact(attacker, ARTIFACT_SOUL_BELL) && qi_stolen < defender->QI)
+            qi_stolen += Artifact_SoulBellStatusBonus(attacker);
         defender->QI_change -= qi_stolen;
+        defender->cursed += Player_HasArtifact(attacker, ARTIFACT_SOUL_BELL) ? Artifact_SoulBellStatusBonus(attacker) : 0;
         break;
     }
     default:
@@ -1129,6 +1173,32 @@ static void Use_Elixir(Player *player, int slot)
         player->disaster_warded = true;
         CHN_PRINT("[化劫丹] 下一次劫数将被削弱。\n");
         break;
+    case ELIXIR_MERIDIAN_GUARD:
+        player->breakthrough_bonus += 10;
+        player->breakthrough_fail_penalty -= 10;
+        CHN_PRINT("[护脉丹] 经脉受护，突破更稳。\n");
+        break;
+    case ELIXIR_FOCUS_INSIGHT:
+        player->cultivation += Yuan[player->XIUWEI] * 2;
+        if (g_config.run_mode)
+            RPG_AddMinorUnderstanding(player, 1);
+        CHN_PRINT("[凝神丹] 神识澄明，修为理解更深。\n");
+        break;
+    case ELIXIR_EXORCISM:
+        player->bleeding = 0;
+        player->cursed = 0;
+        player->disaster_warded = true;
+        CHN_PRINT("[辟邪丹] 邪气尽散，劫数稍缓。\n");
+        break;
+    case ELIXIR_WOOD_SPIRIT:
+    {
+        int heal = Player_PercentOfMaxHP(player, 45);
+        player->HP += heal;
+        if (g_config.run_mode && player == &YOU)
+            player->herb_materials += 1;
+        CHN_PRINT("[木灵丹] 恢复 %d 点元神，药性余韵留存。\n", heal);
+        break;
+    }
     default:
         if (g_elixir_database[id].is_custom)
         {
@@ -1285,6 +1355,12 @@ static void Resolve_Immediate_Effects(Player *player)
             player->cursed = 0;
             CHN_PRINT("[青木瓶] 治疗洗去了流血与诅咒。\n");
         }
+        if (Player_HasArtifact(player, ARTIFACT_GREEN_WOOD_TABLET))
+        {
+            int extra_heal = Player_PercentOfMaxHP(player, Artifact_GreenWoodHealPct(player));
+            heal_amount += extra_heal;
+            CHN_PRINT("[青木灵圭] 木气滋养，额外恢复 %d 点元神。\n", extra_heal);
+        }
         player->HP_change += heal_amount;
         ENG_PRINT("[%s healed for %d HP immediately!]\n", player->name, heal_amount);
         CHN_PRINT("[%s 立即恢复了 %d 点生命值！]\n", player->name, heal_amount);
@@ -1426,6 +1502,7 @@ static void Initialize_Player(Player *player, const char *name_eng, const char *
                 if (Skill_IsDefined((SkillID)i) && g_skill_database[i].rank == 0)
                     Player_UnlockSkill(player, (SkillID)i, true);
             }
+            UI_UnlockDefaultAlchemyRecipes();
             g_run_player_ready = true;
         }
         else
@@ -2580,10 +2657,21 @@ float EvaluateAction(ActionType action_type, const Player *cpu, const Player *op
         if (action_type == ACTION_TYPE_GAIN_QI && cpu->QI < opponent->QI)
             score += 45.0f;
     }
+    if (threat.high_qi)
+    {
+        if (action_type == ACTION_TYPE_DEFEND || action_type == ACTION_TYPE_COUNTER)
+            score += 90.0f + opponent->QI * 4.0f;
+        if (damage > 0 && action_type != ACTION_TYPE_MELEE)
+            score += 45.0f;
+        if (action_type == ACTION_TYPE_GAIN_QI && cpu->QI >= 3)
+            score -= 65.0f;
+    }
     if (threat.defensive_shell)
     {
         if (action_type == ACTION_TYPE_MELEE)
             score -= 45.0f;
+        if (damage > 0 && damage <= cpu->ATK * 1.25f)
+            score -= 35.0f;
         if (action_type == ACTION_TYPE_SMITE || action_type == ACTION_TYPE_TERMINATE || action_type == ACTION_TYPE_BURST)
             score += 70.0f;
         if (action_type == ACTION_TYPE_GAIN_QI)
@@ -2596,6 +2684,17 @@ float EvaluateAction(ActionType action_type, const Player *cpu, const Player *op
         if (action_type == ACTION_TYPE_HEAL && cpu->HP < max_HP[cpu->XIUWEI] * 0.55f)
             score += 45.0f;
     }
+    if (threat.low_hp && damage > 0)
+        score += 80.0f;
+    if (threat.elixir_count >= 3)
+    {
+        if (action_type == ACTION_TYPE_BURST || action_type == ACTION_TYPE_SMITE || action_type == ACTION_TYPE_TERMINATE)
+            score += 70.0f;
+        if (action_type == ACTION_TYPE_MELEE)
+            score -= 20.0f;
+    }
+    if (threat.status_pressure && (action_type == ACTION_TYPE_DEFEND || action_type == ACTION_TYPE_HEAL))
+        score += 35.0f;
 
     // 1. 【生存】治疗的价值 (旧逻辑)
     if (action_type == ACTION_TYPE_HEAL)
@@ -2605,6 +2704,8 @@ float EvaluateAction(ActionType action_type, const Player *cpu, const Player *op
         {
             score += weights->w_health_urgency * (1.0f - health_percentage);
         }
+        if (health_percentage < 0.4f)
+            score += 85.0f;
     }
 
     // 2. 【进攻】伤害的价值 (旧逻辑，但更精细)

@@ -530,6 +530,8 @@ class Handler(BaseHTTPRequestHandler):
                 payload = GAME.command(f"choose_talent index={int(body.get('index', 0))}")
             elif self.path == "/api/near_death":
                 payload = GAME.command(f"choose_near_death index={int(body.get('index', 0))}")
+            elif self.path == "/api/tribulation":
+                payload = GAME.command(f"choose_tribulation choice={int(body.get('choice', 0))}")
             elif self.path == "/api/route":
                 payload = GAME.command(f"choose_route index={int(body.get('index', 0))}")
             elif self.path == "/api/continue":

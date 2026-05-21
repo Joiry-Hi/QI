@@ -1,5 +1,21 @@
 {
-  "ascensions": [],
+  "ascensions": [
+    {
+      "type": "ascension",
+      "title": "羽化飞升",
+      "summary": "劫尽道成，飞升上界。本次修行圆满结束。",
+      "age": 376,
+      "realm": "飞升",
+      "realm_id": 9,
+      "battle_index": 25,
+      "boss_kills": 4,
+      "primary_school": "剑修",
+      "talent_count": 8,
+      "soul_state": "body",
+      "reborn": false,
+      "created_at": 1779359200
+    }
+  ],
   "memorials": [
     {
       "type": "defeat",
@@ -15,6 +31,36 @@
       "soul_state": "body",
       "reborn": false,
       "created_at": 1779282699
+    },
+    {
+      "type": "tribulation_death",
+      "title": "身死道销",
+      "summary": "护身阵未能挡住天雷，元神俱灭。",
+      "age": 54,
+      "realm": "筑基",
+      "realm_id": 2,
+      "battle_index": 9,
+      "boss_kills": 1,
+      "primary_school": "剑修",
+      "talent_count": 2,
+      "soul_state": "body",
+      "reborn": false,
+      "created_at": 1779354279
+    },
+    {
+      "type": "defeat",
+      "title": "道途暂止",
+      "summary": "你选择认命，此世修行止步于此。",
+      "age": 38,
+      "realm": "炼气",
+      "realm_id": 1,
+      "battle_index": 5,
+      "boss_kills": 0,
+      "primary_school": "剑修",
+      "talent_count": 1,
+      "soul_state": "body",
+      "reborn": false,
+      "created_at": 1779363957
     }
   ]
 }
